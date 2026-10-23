@@ -1,0 +1,50 @@
+export class ConfigurationError extends Error {
+  constructor(field: string) {
+    super(`CONFIG_INVALID: ${field}`);
+  }
+}
+export interface DatabaseConfig {
+  host: string;
+  port: number;
+  database: string;
+  user: string;
+  password: string;
+}
+export interface Environment {
+  mode: 'development' | 'test';
+  port: number;
+  database: DatabaseConfig;
+}
+export function readEnvironment(raw: NodeJS.ProcessEnv): Environment {
+  const invalid = (field: string): never => {
+    throw new ConfigurationError(field);
+  };
+  const mode = raw.APP_ENV;
+  if (mode !== 'development' && mode !== 'test') invalid('APP_ENV');
+  if (raw.DATABASE_URL !== undefined) invalid('DATABASE_URL');
+  if (raw.DB_HOST !== '127.0.0.1') invalid('DB_HOST');
+  const expectedPort = mode === 'test' ? '55433' : '55432';
+  const database = mode === 'test' ? 'techbus_test' : 'techbus_dev';
+  if (raw.DB_PORT !== expectedPort) invalid('DB_PORT');
+  if (raw.DB_NAME !== database) invalid('DB_NAME');
+  if (raw.DB_USER !== `${database}_app`) invalid('DB_USER');
+  if (!raw.DB_PASSWORD?.trim()) invalid('DB_PASSWORD');
+  if (
+    !raw.PORT ||
+    !/^\d+$/.test(raw.PORT) ||
+    Number(raw.PORT) < 1 ||
+    Number(raw.PORT) > 65535
+  )
+    invalid('PORT');
+  return {
+    mode: mode as Environment['mode'],
+    port: Number(raw.PORT),
+    database: {
+      host: '127.0.0.1',
+      port: Number(expectedPort),
+      database,
+      user: raw.DB_USER!,
+      password: raw.DB_PASSWORD!,
+    },
+  };
+}
