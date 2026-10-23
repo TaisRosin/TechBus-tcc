@@ -127,4 +127,32 @@ Após respostas de negócio, implementação integral da B03 autorizada: specify
 
 ### Resultado da B03
 
-Autorização local implementada e validada: 13 tarefas, 72 testes totais (42 adicionados ao conjunto B02), tipos/build/lint aprovados. [Evidências](../specs/002-autorizacao-equipe/verification.md). Sem novas dependências. Tabela mínima de equipe, migração explícita e papel de aplicação restrito; nenhuma senha/token armazenado, seed de usuários somente em testes. Concorrência preserva último admin e revalida ator. Supabase/Auth/SMTP, configuração real de sessão e consultas reais de viagens continuam fora desta entrega. Próximo incremento: B04, não iniciado.
+Autorização local implementada e validada: 13 tarefas, 72 testes totais (42 adicionados ao conjunto B02), tipos/build/lint aprovados. [Evidências](../specs/002-autorizacao-equipe/verification.md). Sem novas dependências. Tabela mínima de equipe, migração explícita e papel de aplicação restrito; nenhuma senha/token armazenado, seed de usuários somente em testes. Concorrência preserva último admin e revalida ator. Supabase/Auth/SMTP, configuração real de sessão e consultas reais de viagens continuam fora desta entrega. Na conclusão da B03, o próximo incremento era B04; resultado posterior abaixo.
+
+## B04 — decisões e implementação em 23/10/2026
+
+Taís confirmou conjuntamente as duas recomendações: (1) aluno inativo não recebe consultas automáticas nem novas confirmações, mesmo com contrato vigente; cadastro/vigências e confirmações existentes são preservados, estas ajustadas manualmente pela equipe; (2) zero dias habituais é válido para uso somente extra, sem consultas habituais automáticas, sujeito a vigência, operação da universidade e prazo. Resposta autoriza implementação integral conforme fluxo acordado após dúvidas de negócio.
+
+[Spec B04](../specs/003-cadastros-vigencias/spec.md), plano e tarefas seguem Spec Kit, aproveitando R01/R02. Catálogo fixo Unimater/Unidep, alunos, primeira vigência atômica, renovação/edição, telefone normalizado único e revisões. Sobreposição protegida por transação e bloqueio do aluno; SQL administrativo deve respeitar o mesmo protocolo. Nenhuma extensão nova de PostgreSQL. Datas inclusivas e verificação cadastral interna usam relógio operacional existente. Dias habituais vazios são aceitos; nenhuma alteração cancela confirmações ou envia mensagem.
+
+13 tarefas; 110 testes totais (38 novos), com [evidências](../specs/003-cadastros-vigencias/verification.md). Mesmas versões, dependências e infraestrutura B02/B03; migração apenas nos dois clusters locais. Auth/Supabase reais não utilizados. Verificação cadastral não é elegibilidade completa nem autorização definitiva de confirmação: calendário em B05; locais padrão em B06; jornada e consumidores de consulta/confirmação nos incrementos próprios. Na conclusão da B04, próxima etapa B05; resultado posterior abaixo.
+
+## B05 — decisão e implementação em 23/10/2026
+
+Taís confirmou que correções de calendário valem imediatamente para novas avaliações, preservando confirmações existentes para ajuste manual, sem envio automático ou reabertura de prazo. Confirmação autorizou implementação integral conforme fluxo acordado.
+
+[Spec e plano B05](../specs/004-calendarios-elegibilidade/spec.md): semana habitual e exceções por universidade, precedência da exceção, revisão compartilhada para evitar sobrescrita concorrente. Calendário sem configuração não presume operação; nenhuma semana real foi cadastrada. Restabelecer regra semanal preserva registro da exceção com decisão de herança, sem exclusão automática.
+
+Elegibilidade interna combina cadastro ativo, vigência inclusiva e operação; consulta habitual exige dia habitual, pedido extra dispensa esse dia e exige recebimento antes de 17:00:00 em America/Sao_Paulo. Relógio substituível, instante recebido preservado frente à interpretação tardia. Avaliação não confirma viagem nem autoriza reutilização posterior sem revalidação transacional. Jornadas/agendamentos e recepção durável continuam nos incrementos próprios.
+
+10 tarefas concluídas; 132 testes totais (22 novos), build/lint/tipos aprovados. [Evidências](../specs/004-calendarios-elegibilidade/verification.md). Migrações em PostgreSQL local dev/test, sem dependências novas, mudança de Supabase/infraestrutura ou serviços reais. Na conclusão da B05, próxima etapa B06; resultado posterior abaixo.
+
+## B06 — decisões e implementação em 23/10/2026
+
+Taís confirmou conjuntamente: ponto de embarque vinculado a um único grupo de coleta e região atendida a um único grupo de distribuição; um grupo pode reunir vários pontos/regiões. Desativar ponto, região ou grupo referenciado é permitido, preserva padrões/confirmações existentes, bloqueia novas utilizações e sinaliza ajuste manual. Nenhuma substituição ou mensagem automática.
+
+[Spec B06](../specs/005-grupos-locais/spec.md), plano e tarefas seguem essas decisões. Cadastro manual por sentido, padrões independentes com revisão e registro da origem/referência de pedido ou consentimento. Cadastro inicial não pode ser reutilizado para sobrescrever padrão existente. Local de retorno identificado pela chave canônica do adaptador, sem fundir grafias por suposição. Endereço fora da área, ambíguo, indisponível ou com vínculos inativos não substitui informação válida.
+
+Validação real de endereço permanece indisponível no runtime; testes substituem a porta com evidências sintéticas. Sem provedor de mapas, geometrias, credenciais ou serviço externo escolhidos. R01 tem estrutura de padrões implementada; uso real do desembarque depende da integração geográfica futura. Jornada diária B07/B08, sequência B10 e ordem/otimização B16 continuam fora da B06. Confirmações existentes ainda não são entidades implementadas; B06 não cria nem altera essas futuras jornadas.
+
+10 tarefas, 150 testes totais (18 novos), build/lint/tipos aprovados. [Evidências](../specs/005-grupos-locais/verification.md). Migração explícita em dev/test locais, aplicação sem DELETE/DDL, nenhuma dependência nova ou mudança de PostgreSQL/Supabase/infraestrutura. Próxima etapa B07 — jornada e comandos explícitos.

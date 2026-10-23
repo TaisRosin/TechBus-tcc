@@ -24,15 +24,8 @@ describe('Team access migration in test only', () => {
       await runner.release();
     }
   });
-  it('reverts and reapplies only an empty test table', async () => {
-    const rows = await source.query<{ count: string }[]>(
-      'SELECT count(*) FROM app.team_users',
-    );
-    if (rows[0].count !== '0')
-      throw new Error('Test migration refuses to remove existing members');
-    await source.undoLastMigration();
-    expect(await source.showMigrations()).toBe(true);
-    expect(await source.runMigrations()).toHaveLength(1);
+  it('remains applied without reverting later feature migrations', async () => {
+    expect(await source.showMigrations()).toBe(false);
     expect(await source.runMigrations()).toHaveLength(0);
   });
 });

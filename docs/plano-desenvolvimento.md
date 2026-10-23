@@ -2,11 +2,11 @@
 
 [Início](../README.md) · [Escopo](escopo.md) · [Requisitos](requisitos.md) · [Fluxos](fluxos.md) · [Decisões](decisoes.md) · [Plano](plano-desenvolvimento.md)
 
-TechBus — Sistema para gestão de transporte universitário. Plano por faixas de datas, sem estimativa de horas. Considera maior disponibilidade de Taís nos fins de semana. Metas sujeitas a revisão, não garantia de esforço suficiente ou prazo; base B02 e autorização B03 implementadas localmente; demais módulos seguem planejados.
+TechBus — Sistema para gestão de transporte universitário. Plano por faixas de datas, sem estimativa de horas. Considera maior disponibilidade de Taís nos fins de semana. Metas sujeitas a revisão, não garantia de esforço suficiente ou prazo; base B02, autorização B03 e cadastros/vigências B04 e calendários/elegibilidade B05 e grupos/locais B06 implementados localmente; demais módulos seguem planejados.
 
 ## Marcos e sequência
 
-**B00, preparação B01 e base B02 concluídas.** Resultados no [registro B02](../specs/001-base-backend/verification.md). B03 concluída com [13 tarefas e validação local](../specs/002-autorizacao-equipe/verification.md). Próxima especificação: B04. Não altera os marcos de entrega.
+**B00, preparação B01 e base B02 concluídas.** Resultados no [registro B02](../specs/001-base-backend/verification.md). B03 concluída com [13 tarefas e validação local](../specs/002-autorizacao-equipe/verification.md). B04 concluída com [tarefas e validação](../specs/003-cadastros-vigencias/verification.md). B05 concluída com [validação local](../specs/004-calendarios-elegibilidade/verification.md). B06 concluída com [validação local](../specs/005-grupos-locais/verification.md). Próxima especificação: B07. Não altera os marcos de entrega.
 
 Por orientação do orientador, concluir todo o backend do escopo vigente até **08/11**, preparado para interfaces de integração; conectar serviços reais depois. Backend NestJS e frontend React com Vite, Tailwind CSS e shadcn/ui escolhidos em 20/10/2026. Preparação documental de acessos e ferramentas pode ocorrer antes; integração real não.
 
@@ -26,7 +26,7 @@ Meta funcional e congelamento em **22/11**; reserva **23 a 29/11**; defesa **30/
 
 ## Acompanhamento e limites
 
-Em 22/10/2026, implementada a [base B02](../specs/001-base-backend/plan.md) sob autorização, com 18 tarefas e validação local. Ver [evidências](../specs/001-base-backend/verification.md). Autorização local concluída em B03; cadastros e integrações reais permanecem para os próximos incrementos.
+Em 22/10/2026, implementada a [base B02](../specs/001-base-backend/plan.md) sob autorização, com 18 tarefas e validação local. Ver [evidências](../specs/001-base-backend/verification.md). Autorização local concluída em B03; cadastros/vigências entregues em B04; calendários/elegibilidade entregues em B05; grupos/locais e padrões entregues em B06 com validação simulada; integrações reais permanecem futuras.
 
 Produzir documentação incremental, incluindo decisões e evidências de validação, sem deixar toda escrita para a última semana. Detalhar cedo métricas, protocolo e amostra da comparação acadêmica confirmada. Revisão de conversas antigas por Taís não bloqueia esta documentação.
 
@@ -38,4 +38,4 @@ Supabase escolhido para dados sobre PostgreSQL; Railway/Hetzner ainda sem compos
 
 ## Detalhamento técnico do planejamento
 
-O [backlog](backlog.md), consolidado em 22/10/2026, detalha tarefas futuras e dependências, apoiado por [arquitetura](arquitetura.md), [dados](modelo-dados.md) e [API](api.md). B00, preparação B01 e base B02 concluídas; B03 entregue; B04–B05 completam o primeiro bloco recomendado. B17 é a revisão do backend antes das integrações de B18. Esses documentos não comprovam execução nem alteram datas ou garantem esforço suficiente; a validação dos módulos segue R01–R22 e O01.
+O [backlog](backlog.md), consolidado em 22/10/2026, detalha tarefas futuras e dependências, apoiado por [arquitetura](arquitetura.md), [dados](modelo-dados.md) e [API](api.md). B00, preparação B01 e base B02 concluídas; B03–B05 entregues localmente, completando a avaliação do primeiro bloco; agendamentos e jornadas continuam nos incrementos próprios. B17 é a revisão do backend antes das integrações de B18. Esses documentos não comprovam execução nem alteram datas ou garantem esforço suficiente; a validação dos módulos segue R01–R22 e O01.

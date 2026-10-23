@@ -2,7 +2,7 @@
 
 [Início](../README.md) · [Arquitetura](arquitetura.md) · [Dados](modelo-dados.md) · [API](api.md) · [Backlog](backlog.md) · [Regras](requisitos.md)
 
-Entidades e restrições para orientar o backend. B03 implementa somente a tabela mínima de equipe e sua migração, conforme [dados B03](../specs/002-autorizacao-equipe/data-model.md); demais entidades seguem propostas. TypeORM e migrações versionadas com `synchronize: false` estão escolhidos; modelagem física dos próximos módulos segue pendente. IDs técnicos, datas de criação/alteração e versão de concorrência são propostos. Não incluir financeiro, presença física ou histórico público.
+Entidades e restrições para orientar o backend. B03 implementa somente a tabela mínima de equipe e sua migração, conforme [dados B03](../specs/002-autorizacao-equipe/data-model.md); B04 implementa catálogo fixo de universidades, alunos e vigências conforme [dados B04](../specs/003-cadastros-vigencias/data-model.md); B05 implementa calendário semanal e exceções conforme [dados B05](../specs/004-calendarios-elegibilidade/data-model.md); B06 implementa grupos, regiões, pontos, locais de retorno validados e padrões por trecho conforme [dados B06](../specs/005-grupos-locais/data-model.md); demais entidades seguem propostas. TypeORM e migrações versionadas com `synchronize: false` estão escolhidos; modelagem física dos próximos módulos segue pendente. IDs técnicos, datas de criação/alteração e versão de concorrência são propostos. Não incluir financeiro, presença física ou histórico público.
 
 ## Entidades
 
@@ -17,7 +17,7 @@ Entidades e restrições para orientar o backend. B03 implementa somente a tabel
 | Rota | nome, período noturno, origem comum, fiscalização | Única rota conceitual do recorte; origem pode estar pendente de cadastro, não inventar endereço. |
 | RegiaoAtendida | nome, definição territorial a determinar | Empresa define área; geometria/provedor não escolhidos. |
 | GrupoLocal | rota, sentido coleta/distribuição, nome | Definido manualmente, distinto por sentido. |
-| RegiaoGrupo | região, grupo | Proposta: relação explícita por sentido; resolver ambiguidades de região/grupo antes de aceitar local automaticamente. |
+| Vínculos locais B06 | região → grupo de distribuição; ponto → grupo de coleta | Um grupo por região/ponto, vários pontos/regiões por grupo; campos diretos com restrição de sentido, sem tabela de associação múltipla. |
 | Local | endereço/referência canônicos, região, evidência/status da validação, identificador opcional externo | Não exigir coordenadas antes de escolher método. Endereço inválido/indeterminado não substitui válido. |
 | PontoEmbarque | rota, local, referência, ativo | Apenas registros pré-cadastrados são elegíveis para ida. |
 | OrdemGrupo | grupo, local, posição | Unicidade grupo/local e grupo/posição; local novo sem posição é pendência explícita, nunca inserido por algoritmo inventado. |
@@ -77,4 +77,4 @@ erDiagram
   JornadaAluno ||--o{ MensagemSaida : comunica
 ```
 
-Diagrama parcial: não substitui as restrições da tabela. Retenção, estratégia de desativação de cadastros referenciados e granularidade temporal precisam ser decididas tecnicamente; não presumir apagar dados ao fechar dia. Não expor esses registros como histórico operacional no MVP.
+Diagrama parcial: não substitui as restrições da tabela. Desativação B06 preserva referências e impede novas utilizações com ajuste manual; retenção e granularidade temporal de módulos futuros continuam pendentes; não presumir apagar dados ao fechar dia. Não expor esses registros como histórico operacional no MVP.

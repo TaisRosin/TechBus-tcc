@@ -2,7 +2,7 @@
 
 [Início](../README.md) · [Arquitetura](arquitetura.md) · [Dados](modelo-dados.md) · [API](api.md) · [Backlog](backlog.md) · [Regras](requisitos.md)
 
-B00 e preparação B01 concluídas; B02 implementada localmente, com [evidências](../specs/001-base-backend/verification.md). B03 concluída quanto à autorização local, com [evidências](../specs/002-autorizacao-equipe/verification.md); B04–B20 ainda não implementadas. Ordem segue dependências; não substitui o [plano por datas](plano-desenvolvimento.md), não estima horas nem garante prazo. Regras R01–R22 e O01 permanecem fonte de aceitação.
+B00 e preparação B01 concluídas; B02 implementada localmente, com [evidências](../specs/001-base-backend/verification.md). B03 concluída quanto à autorização local, com [evidências](../specs/002-autorizacao-equipe/verification.md); B04 concluída localmente em [cadastros/vigências](../specs/003-cadastros-vigencias/verification.md); B05 concluída localmente em [calendários/elegibilidade](../specs/004-calendarios-elegibilidade/verification.md); B06 concluída localmente em [grupos/locais](../specs/005-grupos-locais/verification.md); B07–B20 ainda não implementadas. Ordem segue dependências; não substitui o [plano por datas](plano-desenvolvimento.md), não estima horas nem garante prazo. Regras R01–R22 e O01 permanecem fonte de aceitação.
 
 | Ordem | Tarefa pequena | Depende de | Critério de conclusão futura |
 | --- | --- | --- | --- |
@@ -10,9 +10,9 @@ B00 e preparação B01 concluídas; B02 implementada localmente, com [evidência
 | B01 | Escolhas mínimas do primeiro bloco — concluídas | B00 | Supabase Auth, TypeORM/migrações e convenções de tempo registrados. Preparação técnica executada em B02; ver situação abaixo. |
 | B02 | Estruturar módulos e contratos internos — implementado | B01 | Entrada, casos de uso, regras e repositórios separados; relógio substituível; nenhuma integração externa real. |
 | B03 | Implementar autorização de papéis — concluída localmente | B02 | Admin exclusivo para convites/perfis/configurações; operador não escala privilégios; motorista não consulta viagem alheia. R20. |
-| B04 | Cadastros de universidade, aluno e vigência | B03 | Campos R01/R02, telefone único, contrato só datas, bloqueio de novas confirmações/consultas após término. |
-| B05 | Calendários e elegibilidade | B04 | Semana e exceções por universidade; habitual/extra; contrato e operação obrigatórios, sem operação não confirma. R03. |
-| B06 | Grupos e locais | B05 | Grupos manuais por sentido, embarque pré-cadastrado, contrato de validação de endereço simulado, inválido preserva válido. R12/R14/R15. |
+| B04 | Cadastros de universidade, aluno e vigência — concluída localmente | B03 | Catálogo fixo, telefone único, contrato só datas e verificação interna de cadastro/vigência. Padrões de locais entregues em B06, com validação geográfica real ainda pendente; consumidores de consultas/confirmações ainda futuros. |
+| B05 | Calendários e elegibilidade — concluída localmente | B04 | Semana e exceções por universidade; habitual/extra; contrato e operação obrigatórios, sem operação não confirma. R03. |
+| B06 | Grupos e locais — concluída localmente, validação geográfica simulada | B05 | Grupos manuais por sentido, embarque pré-cadastrado, contrato de validação de endereço simulado, inválido preserva válido. R12/R14/R15. |
 | B07 | Jornada e comandos explícitos | B06 | Estados por sentido, última informação válida, “vou”, só ida/só volta, recusa e indecisão; incompreensão não confirma. R05/R06/R08. |
 | B08 | Fechamento e cancelamento | B07 | Volta padrão só com ida confirmada sem recusa; origem marcada; não respondente excluído. Bloquear nova confirmação/troca após 17h e permitir só cancelar volta até 22h. R07/R09/R10. |
 | B09 | Idempotência e concorrência da jornada | B08 | Duplicatas não repetem efeito; fechamento repetido não desfaz cancelamento; versão velha não vence revisão; testar limites do relógio. |
