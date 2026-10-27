@@ -1,8 +1,24 @@
 import type { Student, Contract, University, Period } from '../domain/registry';
 import type { Calendar, CalendarException } from '../domain/calendar';
 import type { LocationTransaction } from './location-ports';
+import type { JourneyTransaction } from '../../journey/application/ports';
+import type { PatternTransaction } from '../../journey/application/pattern-ports';
+import type { FleetTransaction } from '../../fleet/application/ports';
+import type { OperationTransaction } from '../../operation/application/ports';
+import type { CorrectionTransaction } from '../../journey/application/correction-ports';
+import type { MessageTransaction } from '../../messaging/application/ports';
+import type { ConsultationTransaction } from '../../operation/application/consultation-ports';
+import type { ItineraryTransaction } from '../../itinerary/application/ports';
 
 export interface RegistryTransaction {
+  itineraries: ItineraryTransaction;
+  consultations: ConsultationTransaction;
+  messages: MessageTransaction;
+  corrections: CorrectionTransaction;
+  operations: OperationTransaction;
+  fleet: FleetTransaction;
+  patterns: PatternTransaction;
+  journeys: JourneyTransaction;
   places: LocationTransaction;
   calendar(
     universityId: string,

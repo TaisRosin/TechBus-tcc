@@ -1,0 +1,7 @@
+# Contratos B13
+Admin/operador ativos, `/api/v1/students/:id/journey/correction`, dia atual do relógio America/Sao_Paulo. Nenhum parâmetro de histórico.
+- GET: date, journey (ou null), version (0 se ausente), pendingReceipts (id/sequence/receivedAt/ordering/result), studentUniversityId. Somente pendências atuais não finalizadas; equipe revisa antes de enviar.
+- POST: {operationId,expectedVersion,reason,reviewedReceiptIds,changes}. changes permite pickup/dropoff: confirmado|recusado; pointId/locationId: UUID válido; universityId: unimater|unidep, obrigatoriamente igual ao cadastro atual. Campos omitidos preservados. Pelo menos uma mudança ou pendência revisada. Pode resolver pendências sem alterar intenção existente; jornada ausente exige mudança explícita. Não aceita flag de área, data, ator, origem ou concessão de elegibilidade.
+- Sucesso: {operationId,version,correctedAt,journey}; não altera padrões ou envia mensagens. Leitura B12 mostra demanda/planejamento atualizado e problemas de capacidade.
+- INVALID_INPUT 400; NOT_FOUND 404; VERSION_CONFLICT, PENDING_REVIEW_REQUIRED, IDEMPOTENCY_CONFLICT, CONTEXT_CHANGED, LOCATION_INVALID e impedimentos de elegibilidade 409. Contexto é reavaliado ao confirmar viagem; remover confirmação preservada é permitido mesmo inelegível.
+- Repetição mesma chave/corpo/ator devolve resultado original após reautorizar; chave reutilizada com entrada diferente ou recibo de outra origem rejeitada. Pendência nova ou revisão nova exige recarregar.

@@ -46,7 +46,7 @@ Mudanças normalmente valem só para o dia. Padrão muda apenas por pedido expl�
 
 ## Trajetos e limites
 
-Cálculo automático do trajeto é alta prioridade, opcional se comprometer entrega. Google Maps é possibilidade, não decisão. Plano B se inviável/atrasar: empresa cadastra ordem por grupo/sentido, sistema filtra locais dos confirmados preservando ordem, sem promessa de otimização, equilíbrio de tempo ou distâncias calculadas. Inserção de novo endereço válido nessa ordem precisa de definição operacional; não perder o endereço nem inventar algoritmo.
+Cálculo automático do trajeto é alta prioridade, opcional se comprometer entrega. Google Maps é possibilidade, não decisão. Plano B se inviável/atrasar: empresa cadastra ordem por grupo/sentido, sistema filtra locais dos confirmados preservando ordem, sem promessa de otimização, equilíbrio de tempo ou distâncias calculadas. Decisão B16: equipe insere manualmente endereço novo; enquanto houver confirmado sem posição, itinerário completo não pode ser publicado. Alterar ordem padrão exige publicação explícita no dia; última ordem publicada permanece com alerta e cancelamentos são refletidos imediatamente.
 
 Fora do MVP: colégio, diurno, múltiplas empresas, qualquer financeiro, rastreamento, comprovação de presença, autocadastro e interface de histórico de operação. Histórico consultável fica futuro. Manter registros mínimos para funcionamento e sequências de locais; retenção técnica a definir, sem exclusão automática presumida ao fechar o dia. Sugestão de pontos por geolocalização permanece futura.
 

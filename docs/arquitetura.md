@@ -2,13 +2,13 @@
 
 [Início](../README.md) · [Arquitetura](arquitetura.md) · [Dados](modelo-dados.md) · [API](api.md) · [Backlog](backlog.md) · [Regras](requisitos.md)
 
-Desenho iniciado em 14/10/2026 e consolidado em 22/10/2026, com base B02 e autorização B03 implementadas localmente; demais módulos ainda propostos. As regras confirmadas estão em [requisitos](requisitos.md) e [decisões](decisoes.md). Organização em módulos, contratos e mecanismos abaixo são propostas técnicas revisáveis, com TypeORM/migrações e Supabase Auth confirmados; versões do backend verificadas em [B02](../specs/001-base-backend/research.md); hospedagem pendente.
+Desenho iniciado em 14/10/2026 e consolidado em 22/10/2026, com B02–B08 implementadas localmente conforme o [backlog](backlog.md); demais módulos ainda propostos. As regras confirmadas estão em [requisitos](requisitos.md) e [decisões](decisoes.md). Organização em módulos, contratos e mecanismos abaixo são propostas técnicas revisáveis, com TypeORM/migrações e Supabase Auth confirmados; versões do backend verificadas em [B02](../specs/001-base-backend/research.md); hospedagem pendente.
 
 ## Estrutura proposta
 
 O projeto local PRM 2026, ainda incompleto, é referência autorizada para organização modular e separação entre frontend e backend. Evidências e limites estão no [registro da referência](decisoes.md#referência-técnica--prm-2026). TypeORM foi confirmado separadamente por Taís. Axios, React Query, versões e configurações do PRM não são automaticamente decisões do TechBus.
 
-Stack escolhida em 20/10/2026, com decisões adicionais consolidadas em 22/10/2026; a organização interna continua proposta. Supabase para dados e Supabase Auth para identidade foram confirmados separadamente. Vite no frontend e Nest CLI no backend. B00 concluída quanto à seleção; escolhas mínimas de B01 concluídas e preparação técnica para B02 pendente.
+Stack escolhida em 20/10/2026, com decisões adicionais consolidadas em 22/10/2026; a organização interna continua proposta. Supabase para dados e Supabase Auth para identidade foram confirmados separadamente. Vite no frontend e Nest CLI no backend. B00 concluída quanto à seleção; escolhas mínimas de B01 concluídas e preparação técnica executada em B02.
 
 Backend modular em NestJS e frontend em React com Vite, Tailwind CSS e shadcn/ui, conforme escolhas de 20/10/2026. Sem microserviços nesta proposta; regras ficam no servidor. A entrada HTTP valida identidade e dados, chama casos de uso e retorna resultados. Casos de uso consultam regras de domínio e persistência por interfaces. Nenhuma regra depende de texto livre ou decisão autônoma da IA.
 
@@ -77,3 +77,21 @@ Supabase Auth com e-mail/senha individual para admin, operador e motorista, sem 
 Primeiro administrador por procedimento inicial controlado. Depois, somente admin solicita convites pelo backend; usuário valida o convite e escolhe a senha. Convite inválido/expirado exige orientação e reenvio pelo admin. Recuperação por link ao e-mail cadastrado não reativa usuário. Perda/erro de e-mail exige atendimento administrativo com verificação da pessoa. Procedimentos detalhados em B03; SMTP e URLs de retorno configurados/testados em B18.
 
 Autorização deve ser validada durante o backend com substituto controlado de identidade restrito aos testes. Supabase Auth real e demais serviços serão conectados após B17; não apresentar login/convite/recuperação simulados como integrações entregues. Chaves administrativas e credenciais de banco permanecem no backend; o SDK de autenticação no React não concede acesso direto aos dados operacionais.
+
+## Planejamento implementado B12
+OperationService reutiliza RegistryStore e avaliação B11 na mesma transação. A barreira de locais/jornadas também protege recebimento e confirmação; alunos, calendários e recursos são revalidados sob locks. Rascunho e fotografia confirmada são separados; ocupações absolutas incluem permanência e datas adjacentes. Consulta atual apresenta demanda, pendências e necessidade de ajuste. [Plano B12](../specs/011-alocacao-planejamento/plan.md). Não há escrita externa irrestrita nem novas dependências/serviços.
+
+## Correções implementadas B13
+CorrectionService reutiliza RegistryStore, lock de locais, bloqueio do aluno e validações existentes. Origem equipe e sequência de recibo interno preservam ordenação; hash/resultado registram idempotência. B10 deriva sequências da jornada corrigida e B12 mantém ocupações até reconfirmação válida. [Plano B13](../specs/012-correcoes-equipe/plan.md). Mesmas dependências, infraestrutura local e autorização, sem integrações reais.
+
+## Revisão integrada B17
+Sem novos módulos, endpoints, dependências ou esquema. Fluxo entre mensagens, jornada, fechamento, alocação, correção, consultas e itinerários validado com serviços reais e portas externas simuladas. Matriz e limites em [cobertura B17](../specs/016-revisao-backend/coverage.md); preparação local não comprova integração Supabase/WhatsApp/IA/geografia.
+
+## Itinerários B16
+ItineraryService mantém ordem padrão e publicação explícita separadas; reusa leitura transacional de ConsultationService para autorização e passageiros. Publicação usa revisão/token e versão confirmada do planejamento; leituras filtram cancelamentos e expõem pendências sem redistribuir alunos. AutomaticRouting valida a resposta de uma porta independente de fornecedor, desabilitada por padrão; sem chamadas externas nas transações. [Plano B16](../specs/015-trajeto-contingencia/plan.md).
+
+## Consultas B15
+ConsultationService reutiliza transações, jornadas, comunicação e avaliação do planejamento. Leitura administrativa consolida estados; motorista recebe somente atribuições confirmadas e passageiros compatíveis com o registro de vínculos capturado na confirmação. Revogação de acesso e mudanças de planejamento são reavaliadas em cada consulta. Sem nova dependência ou serviço externo. [Plano B15](../specs/014-consultas-operacionais/plan.md).
+
+## Comunicação implementada B14
+Outbox e tentativas locais, relógio injetável, executor interno e porta de envio desabilitada. Preparação/claim usam transações e revalidação; adaptador executa fora dos locks, finalização não altera viagem. Retry administrativo versionado somente para falha conhecida; incerteza aguarda reconciliação futura. Sem fila, cron, fornecedor ou infraestrutura novos. [Plano B14](../specs/013-mensagens-agendamentos/plan.md).

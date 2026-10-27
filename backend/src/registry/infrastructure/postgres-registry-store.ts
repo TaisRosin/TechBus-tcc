@@ -5,6 +5,14 @@ import { RegistryStore, type RegistryTransaction } from '../application/ports';
 import type { Student, Contract, University } from '../domain/registry';
 import type { Calendar, CalendarException } from '../domain/calendar';
 import { locationQueries } from './location-queries';
+import { journeyQueries } from '../../journey/infrastructure/journey-queries';
+import { patternQueries } from '../../journey/infrastructure/pattern-queries';
+import { fleetQueries } from '../../fleet/infrastructure/fleet-queries';
+import { operationQueries } from '../../operation/infrastructure/operation-queries';
+import { correctionQueries } from '../../journey/infrastructure/correction-queries';
+import { messageQueries } from '../../messaging/infrastructure/message-queries';
+import { consultationQueries } from '../../operation/infrastructure/consultation-queries';
+import { itineraryQueries } from '../../itinerary/infrastructure/itinerary-queries';
 
 const studentColumns =
   'id,name,phone,university_id AS "universityId",habitual_days AS "habitualDays",active,version';
@@ -60,12 +68,30 @@ export class PostgresRegistryStore extends RegistryStore {
           driver.constraint === 'students_phone_key'
         )
           throw new AccessError('PHONE_IN_USE', 409);
+        if (
+          driver.code === '23505' &&
+          driver.constraint === 'fleet_vehicles_identifier_key'
+        )
+          throw new AccessError('VEHICLE_IDENTIFIER_IN_USE', 409);
+        if (
+          driver.code === '23505' &&
+          driver.constraint === 'fleet_vehicles_plate_key'
+        )
+          throw new AccessError('VEHICLE_PLATE_IN_USE', 409);
       }
       throw new AccessError('REGISTRY_UNAVAILABLE', 503);
     }
   }
   private port(m: EntityManager): RegistryTransaction {
     return {
+      itineraries: itineraryQueries(m),
+      messages: messageQueries(m),
+      consultations: consultationQueries(m),
+      operations: operationQueries(m),
+      corrections: correctionQueries(m),
+      fleet: fleetQueries(m),
+      patterns: patternQueries(m),
+      journeys: journeyQueries(m),
       places: locationQueries(m),
       calendar: async (id, lock) =>
         (

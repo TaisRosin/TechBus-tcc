@@ -12,9 +12,9 @@ Precisão confirmada: “até 17h” significa recebimento durável no backend a
 | R02 | Vigência e identificação. | Telefone cadastrado identifica aluno; desconhecido é orientado à empresa. Vigência inclui datas inicial/final; rejeitar datas invertidas e sobreposição para o mesmo aluno. Contrato encerrado impede consultas e novas confirmações até renovação. Inatividade também bloqueia essas ações, sem cancelar confirmações existentes; ajustes são manuais pela equipe. |
 | R03 | Calendário por universidade. | Empresa define dias e exceções; consulta automática só com dia habitual do aluno, operação da universidade e vigência. Dia extra iniciado pelo aluno até 17h segue regras se houver operação; sem operação não confirmar. Exceção por data prevalece sobre semana; correções valem em novas avaliações, preservando confirmações existentes para ajuste manual, sem envio automático. |
 | R04 | Consulta e lembretes. | 05h inicial; 11h, 13h e 16h lembretes em America/Sao_Paulo, só pendências; resposta definitiva encerra lembretes do trecho. Ida resolvida permite lembretes apenas de volta. |
-| R05 | Interpretar e revisar respostas até 17h. | “Vou”/confirmação de ida inclui ambos salvo recusa explícita de volta; só ida/só volta limita ao trecho; “não vou” nenhum salvo só volta explícita. Última informação explícita válida prevalece. |
+| R05 | Interpretar e revisar respostas até 17h. | “Vou”/confirmação de ida inclui ambos salvo recusa explícita de volta; só ida/só volta limita ao trecho; “não vou” nenhum salvo só volta explícita. Última informação explícita válida prevalece. Confirmado B07: “vou” após “só ida” preserva a recusa de volta até alteração explícita desse trecho. |
 | R06 | Distinguir ausência e indecisão de ida. | Sem resposta em lista própria, fora dos confirmados/capacidade. “Ainda não sei se vou” recebe lembretes e continua distinto de sem resposta; sem confirmação de ida até 17h não entra na contagem de ida. |
-| R07 | Aplicar padrão de volta para ida confirmada. | Ida confirmada + “ainda não sei se volto”: manter ida e pendência de volta até fechamento; às 17h incluir volta em lista/capacidade, sinalizar origem padrão e informar aluno no resumo sobre confirmação e cancelamento até 22h. Não aplicar a não respondentes. |
+| R07 | Aplicar padrão de volta para ida confirmada. | Ida confirmada + “ainda não sei se volto”: manter ida e pendência de volta até fechamento; às 17h incluir volta em lista/capacidade, sinalizar origem padrão e informar aluno no resumo sobre confirmação e cancelamento até 22h. Não aplicar a não respondentes. Confirmado B08: perda de elegibilidade impede nova volta padrão, preserva confirmações existentes e exige ajuste manual. |
 | R08 | Resumo e incompreensão. | IA informa trechos/locais finais e regra padrão quando aplicável. Se esclarecimento não resolve, encaminhar pendência à equipe, sem inventar confirmação ou apagar informação válida anterior. |
 | R09 | Bloquear ações do aluno após 17h. | Rejeitar nova ida/volta, troca de ponto e revisões, exceto cancelamento explícito de volta confirmada até 22h. Não criar fluxo de aprovação tardia. |
 | R10 | Cancelamento de volta. | Até 22h retira volta das listas e atualiza distribuição; preserva ida e não implica trocar veículo que já está em Pato Branco. Após 22h aluno não altera. |
@@ -28,12 +28,14 @@ Precisão confirmada: “até 17h” significa recebimento durável no backend a
 | R18 | Etapas da viagem e atribuição de motorista. | Coleta mista até fiscalização; ida/retorno de Pato Branco por universidade no mesmo veículo que permanece lá; distribuição mista por regiões. Empresa atribui motorista por veículo/trecho. |
 | R19 | Painel e falhas de mensagens. | Mostrar respostas/contagens por universidade, trecho, grupo e local, pendentes, origem padrão da volta, cancelamentos e falhas de envio. Equipe pode tentar reenviar; falha não sobrescreve confirmação prévia. |
 | R20 | Perfis e múltiplos logins. | Supabase Auth com e-mail/senha individual, convite do admin e senha definida pelo usuário; recuperação por e-mail não reativa desativado. Token validado e permissões/usuário ativo conferidos no NestJS.  Só admin cria/convida usuários, atribui perfil e gerencia configurações gerais, sem cadastro público. Três perfis fixos, um por usuário, sem permissões personalizadas. Múltiplos admins permitidos; impedir desativar/rebaixar o último admin ativo, inclusive por ele próprio e sob concorrência. Admin/operador gerenciam cadastros, calendários e operação. Motorista só lê viagens atribuídas, nomes, locais, trajetos e telefones; sem edição. |
-| R21 | Plano B de trajeto. | Quando necessário, filtrar locais confirmados por grupo/sentido na ordem cadastrada, sem reordenar nem prometer tempo/distância/otimização. Novo local não deve ser descartado; inserção na ordem precisa de regra. |
+| R21 | Plano B de trajeto. | Quando necessário, filtrar locais confirmados por grupo/sentido na ordem cadastrada, sem reordenar nem prometer tempo/distância/otimização. Novo local permanece pendente até inserção manual pela equipe; publicação completa bloqueada até ordenar. Mudança padrão exige publicação explícita do dia (B16). |
 | R22 | Limites dos registros. | Sem histórico operacional consultável no MVP e sem presença/check-in. Manter dados mínimos para operação e sequência de locais; retenção a definir, sem exclusão presumida ao fim do dia. |
 
 **O01 — Trajeto automático:** alta prioridade, opcional se comprometer entrega; grupos continuam manuais. Serviço, critérios técnicos e mapas ainda não escolhidos. Plano B é contingência validada, não abandono imediato.
 
 ## Casos críticos para revisão e futura validação
+
+Rastreabilidade e limites da revisão local: [matriz B17](../specs/016-revisao-backend/coverage.md). A evidência sintética não encerra requisitos dependentes de serviços reais ou da interface visual.
 
 | Caso | Resultado esperado |
 | --- | --- |
@@ -60,3 +62,26 @@ Precisão confirmada: “até 17h” significa recebimento durável no backend a
 | Motorista tenta editar ou consultar viagem não atribuída | Não permitir; leitura restrita às próprias atribuições, incluindo telefones autorizados. |
 
 Pendências específicas em [decisões](decisoes.md#pendências); não reabrir regras já resolvidas.
+
+## Precisão B07 — locais pendentes
+Confirmado por Taís em 23/10/2026: intenção explícita sem local válido confirma e conta na demanda do trecho, sinalizando pendência. Não inventar endereço nem apresentar local inválido como validado. Resolver a pendência antes de concluir o planejamento operacional; não confundir confirmação do aluno com confirmação do planejamento.
+## Precisão de R13 — B10
+Confirmado B10: após recusa, não repetir sugestão na mesma sequência; outro local e quatro novas utilizações do alternativo permitem nova proposta. Uso confirmado sem local identificado suspende a sugestão até resolução e recálculo, preservando a confirmação na demanda.
+
+## Precisão de R14/R18 — B11
+Decisões B11 confirmadas em 25/10/2026: disponibilidade por faixas de início/fim informadas pela empresa e associadas às etapas; ciclo intermunicipal inclui ida, permanência e retorno. Programação semanal por veículo, com exceção por data prevalecendo. Sem configuração, não presumir disponibilidade.
+
+## Precisão de R16/R17 — B12
+Confirmado em 25/10/2026: opções/rascunhos antes das 17h; confirmação definitiva somente após fechamento e resolução das pendências. Empresa pode escolher veículo maior disponível e suficiente; recomendação permanece a menor capacidade adequada. Mudanças posteriores exigem revisão, sem troca automática do veículo. [Decisão B12](decisoes.md#b12--alocação-e-planejamento).
+
+## Precisão de R11 — B13
+Correção manual altera apenas trechos/campos selecionados; não infere volta ao confirmar ida pela equipe. Pendências anteriores só são encerradas mediante revisão explícita e justificativa, sem permitir que interpretação atrasada desfaça a correção. Prazos do aluno, validação de locais/elegibilidade e cancelamento posterior válido permanecem. [Spec B13](../specs/012-correcoes-equipe/spec.md).
+
+## Precisão de R21/O01 — B16
+Novo local confirmado sem posição permanece na demanda e impede publicar itinerário completo até inserção manual pela equipe. Alteração de ordem padrão exige publicação explícita do itinerário do dia; última ordem publicada permanece com alerta e cancelamentos filtram paradas vazias imediatamente. Publicação não altera grupos, veículos ou confirmações. Automático continua prioritário, com contrato e viabilidade condicionada preparados, sem integração real. [Decisões B16](decisoes.md#b16--trajeto-e-contingência).
+
+## Precisão de R19/R20/R22 — B15
+Consulta operacional inclui respostas, origens, contagens, pendências e comunicação. Motorista ativo e explicitamente vinculado lê somente seus trechos confirmados, com telefones necessários. Revisão não publica rascunhos nem reassocia passageiros; cancelados saem imediatamente. Janela: hoje e operação anterior enquanto algum trecho confirmado não atingiu o fim previsto. Sem histórico ou reabertura de comandos. [Spec B15](../specs/014-consultas-operacionais/spec.md).
+
+## Precisão de R04/R19 — B14
+Recuperação após indisponibilidade considera somente o contato mais recente ainda pertinente antes das 17h, sem acumular horários perdidos. Extra válido iniciado pelo aluno recebe próximos lembretes de pendências, sem consulta inicial não habitual. Reenvio exige falha conhecida e pertinência atual; não repete enviado nem resultado incerto. [Decisões B14](decisoes.md#b14--mensagens-e-agendamentos-simulados).

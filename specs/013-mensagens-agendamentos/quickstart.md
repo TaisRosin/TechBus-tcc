@@ -1,0 +1,3 @@
+# Quickstart B14
+Reutilizar [ambiente B02](../001-base-backend/quickstart.md), Node local e ambos PostgreSQL privados ativos. No backend: npm run build; node node_modules/jest/bin/jest.js --runInBand --testPathPatterns messages; node node_modules/jest/bin/jest.js --runInBand; npm run lint; node node_modules/typescript/bin/tsc --noEmit.
+Testes usam relógio e sender falso, sem envio externo. Casos: recuperação13h às14h, corte17h, elegibilidade, extras, lembrete só volta, revisão antes de envio, concurrent claim/retry, sucesso/falha/incerteza, falha de persistência, fechamento/cancelamento e autorização HTTP.

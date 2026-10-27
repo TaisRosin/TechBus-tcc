@@ -2,7 +2,7 @@
 
 [Início](../README.md) · [Arquitetura](arquitetura.md) · [Dados](modelo-dados.md) · [API](api.md) · [Backlog](backlog.md) · [Regras](requisitos.md)
 
-Entidades e restrições para orientar o backend. B03 implementa somente a tabela mínima de equipe e sua migração, conforme [dados B03](../specs/002-autorizacao-equipe/data-model.md); B04 implementa catálogo fixo de universidades, alunos e vigências conforme [dados B04](../specs/003-cadastros-vigencias/data-model.md); B05 implementa calendário semanal e exceções conforme [dados B05](../specs/004-calendarios-elegibilidade/data-model.md); B06 implementa grupos, regiões, pontos, locais de retorno validados e padrões por trecho conforme [dados B06](../specs/005-grupos-locais/data-model.md); demais entidades seguem propostas. TypeORM e migrações versionadas com `synchronize: false` estão escolhidos; modelagem física dos próximos módulos segue pendente. IDs técnicos, datas de criação/alteração e versão de concorrência são propostos. Não incluir financeiro, presença física ou histórico público.
+Entidades e restrições para orientar o backend. B03 implementa somente a tabela mínima de equipe e sua migração, conforme [dados B03](../specs/002-autorizacao-equipe/data-model.md); B04 implementa catálogo fixo de universidades, alunos e vigências conforme [dados B04](../specs/003-cadastros-vigencias/data-model.md); B05 implementa calendário semanal e exceções conforme [dados B05](../specs/004-calendarios-elegibilidade/data-model.md); B06 implementa grupos, regiões, pontos, locais de retorno validados e padrões por trecho conforme [dados B06](../specs/005-grupos-locais/data-model.md); B07 implementa jornada diária única e recebimentos duráveis conforme [dados B07](../specs/006-jornada-comandos/data-model.md); B08 amplia jornada/recibos com marcas de fechamento, origem padrão e cancelamento conforme [dados B08](../specs/007-fechamento-cancelamento/data-model.md); demais entidades seguem propostas. TypeORM e migrações versionadas com `synchronize: false` estão escolhidos; modelagem física dos próximos módulos segue pendente. IDs técnicos, datas de criação/alteração e versão de concorrência são propostos. Não incluir financeiro, presença física ou histórico público.
 
 ## Entidades
 
@@ -78,3 +78,24 @@ erDiagram
 ```
 
 Diagrama parcial: não substitui as restrições da tabela. Desativação B06 preserva referências e impede novas utilizações com ajuste manual; retenção e granularidade temporal de módulos futuros continuam pendentes; não presumir apagar dados ao fechar dia. Não expor esses registros como histórico operacional no MVP.
+
+## Implementação B10
+Sequências são derivadas das jornadas existentes; nenhuma tabela duplicada de contribuições. Decisões sobre padrões/sugestões ficam em place_pattern_decisions, ligadas ao recibo e ao local, com evidência atômica no padrão. Aplicação pode consultar/inserir decisões, sem editar/apagar. [Modelo físico B10](../specs/009-padroes-sequencia/data-model.md). Sem histórico público ou retenção automática.
+
+## Implementação B11
+Frota, motoristas e exceções em três tabelas; semana e faixas estruturadas com restrições no banco, revisão compartilhada do veículo e aplicação sem DELETE/DDL. Etapas são avaliadas como propostas, sem alocação persistida nesta etapa. [Modelo físico B11](../specs/010-frota-disponibilidade/data-model.md).
+
+## Implementação B12
+Planos separam rascunho e fotografia confirmada; ocupações de veículo/motorista usam timestamps absolutos para detectar conflitos entre datas. Substituição desativa ocupações antigas somente na confirmação válida; falha reverte a transação. Triggers de jornada/recibo marcam revisão necessária sem excluir registros. [Modelo físico B12](../specs/011-alocacao-planejamento/data-model.md). Sem DELETE/DDL para a aplicação e sem retenção automática.
+
+## Implementação B13
+Origem equipe nos trechos corrigidos e registro imutável em team_corrections, associado a recibo interno finalizado que ordena a correção. Recibos revisados recebem resolução explícita; não são apagados. Aplicação não pode editar/apagar o registro. [Modelo físico B13](../specs/012-correcoes-equipe/data-model.md). Jornada, pendências e invalidação do planejamento são gravadas atomicamente.
+
+## Implementação B16
+group_stop_orders guarda revisão e sequência de IDs canônicos por grupo. published_itineraries guarda última publicação explícita por data/grupo, versão do plano/ordem, responsável, instante e token da prévia. Arrays sem nulos/duplicados; validade e pertencimento verificados sob lock de locais. Aplicação sem DELETE/DDL e reversão protegida contra perda de evidências. [Modelo físico B16](../specs/015-trajeto-contingencia/data-model.md).
+
+## Implementação B15
+driver_access_links mantém associação exclusiva conta/motorista e revisão, preservando a linha ao revogar. operation_manifests registra vínculos aluno/sentido/universidade/grupo por versão confirmada, sem edição pela aplicação. Plano anterior sem manifesto exige reconfirmação antes de publicar passageiros; não há preenchimento retroativo presumido. Reversão recusa dados existentes. [Modelo físico B15](../specs/014-consultas-operacionais/data-model.md).
+
+## Implementação B14
+outgoing_messages e message_attempts separam comunicação de confirmação de viagem; chave aluno/data/slot e reserva transacional evitam duplicação concorrente. Jornada guarda início elegível do pedido extra e seu instante. Aplicação sem DELETE/DDL, reversão bloqueada com evidências; nenhuma retenção automática. [Modelo físico B14](../specs/013-mensagens-agendamentos/data-model.md).

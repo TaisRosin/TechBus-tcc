@@ -1,0 +1,7 @@
+# Dados B12
+- operation_plans: date PK; version inteiro >0; draft JSONB array; demand_token varchar(64); confirmed_version nullable inteiro >0; confirmed_trips JSONB array nullable; confirmed_token varchar(64) nullable; confirmed_by UUID FK team_users; confirmed_at timestamptz; needs_adjustment bool. Campos confirmados presentes conjuntamente. Versão do rascunho não muda ao confirmar; novo rascunho incrementa.
+- operation_occupancies: id UUID PK; plan_date FK; plan_version inteiro >0; vehicle_id UUID FK nullable ou driver_id UUID FK nullable (exatamente um); starts_at/ends_at timestamptz com fim>início; active bool. Índices por plano e recurso/tempo. Somente confirmação grava; substituição desativa linhas anteriores, preservando registros mínimos.
+- Draft/snapshot: propostas normalizadas de B11, no máximo 100; vazio válido para nenhuma demanda. Intermunicipal: uma seleção por universidade; local: uma seleção por grupo/etapa. JSON verificado no servidor; DB exige arrays.
+- Token: hash SHA-256 de revisões e projeção atual; opaco, não autorização. Confirmar exige mesmo token atual e do rascunho.
+- Triggers em daily_journeys e journey_receipts invalidam marca do plano confirmado na mesma transação da mudança; não eliminam ocupação. Cadastro/frota são reavaliados na leitura/confirmação.
+- Aplicação SELECT/INSERT/UPDATE em planos/ocupações, sem DELETE/DDL. Reversão bloqueada com planos existentes. Sem política de retenção automática.

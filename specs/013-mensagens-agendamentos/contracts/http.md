@@ -1,0 +1,6 @@
+# Contratos B14
+- GET /api/v1/messages: admin/operador ativos, somente data atual; limit/offset como catálogos existentes. Retorna mensagens, estado, versão, conteúdo e código seguro. Sem parâmetro histórico.
+- POST /api/v1/messages/:id/retry {expectedVersion}: somente failed do dia atual; revalida pertinência/slot/elegibilidade antes de reservar tentativa. VERSION_CONFLICT ou RETRY_NOT_ALLOWED quando superado, enviado ou incerto. Obsoleto vira skipped, sem envio.
+- MessageService.tick(): interno, sem rota/cron; prepara slot atual (05/11/13/16 antes17), fecha via B08 a partir17 e prepara aviso de padrão ainda pertinente. Não envia por si só. Retorna {ids,failures}, com IDs preparados e falhas de fechamento, para despacho interno.
+- MessageService.dispatch(id): interno, só ready. Claim durável → porta MessageSender.send({attemptId,messageId,phone,text}) → finalização. Porta retorna apenas status sent/failed/unknown; serviço atribui código seguro e exceção vira unknown. Padrão não comunica com fornecedor real.
+- Leituras/retries não alteram jornada, alocação ou padrões. Confirmações do transporte não dependem de status de mensagem. Tentativas sending após interrupção exigem reconciliação futura, nunca reenvio cego.

@@ -58,7 +58,7 @@ Registro histórico de planejamento em 22/10/2026 (aprovação e execução post
 
 1. **Preparação técnica após B01:** pesquisar e registrar versões compatíveis do primeiro bloco e definir como provisionar o PostgreSQL isolado de desenvolvimento/testes e executar migrações. As escolhas de autenticação, ORM/migrações e convenções de tempo já estão confirmadas; ver [situação de B01](backlog.md#situação-de-b01).
 2. **Acessos:** duração/inatividade da sessão, detalhes de criação do primeiro admin, reenvio e verificação em troca/perda de e-mail. Especificar nos módulos de acesso e validar serviço, URLs de retorno e envio SMTP em B18; não reabrir o provedor ou o método de login.
-3. **Antes dos respectivos módulos:** representação/canonicalização de regiões e endereços; novo endereço válido na ordem do plano B e tratamento até ordenar; disponibilidade por etapas/janelas; recuperação de lembretes após indisponibilidade; janela operacional consultável; desativação de cadastros referenciados e retenção mínima. As recomendações gerais sobre esses itens continuam propostas, não decisões confirmadas.
+3. **Antes dos respectivos módulos:** representação/canonicalização de regiões e endereços; novo endereço válido na ordem do plano B e tratamento até ordenar (resolvidos em B16 abaixo); disponibilidade por etapas/janelas; recuperação de lembretes após indisponibilidade (resolvida em B14 abaixo); janela operacional consultável (resolvida em B15 abaixo); desativação de cadastros referenciados e retenção mínima. As recomendações gerais sobre esses itens continuam propostas, não decisões confirmadas.
 4. **Integrações:** Evolution API direta ou n8n, IA OpenAI/Gemini, mapas/validação/cálculo, infraestrutura, conexão remota PostgreSQL, SMTP e parâmetros dos serviços. Integração direta foi recomendada, não aprovada. Avaliar viabilidade do trajeto automático durante o backend, preservando a prioridade e a contingência.
 5. **Dados operacionais:** empresa preencher origem comum, regiões/grupos, pontos, frota, motoristas, alunos/vigências e calendários reais; não são novas decisões de escopo.
 6. **Acadêmico:** métricas/protocolo/amostra dos testes comparativos, prazo próprio do texto, dia específico da defesa e reunião com o orientador. Revisar viabilidade das metas sem alterá-las silenciosamente.
@@ -156,3 +156,72 @@ Taís confirmou conjuntamente: ponto de embarque vinculado a um único grupo de 
 Validação real de endereço permanece indisponível no runtime; testes substituem a porta com evidências sintéticas. Sem provedor de mapas, geometrias, credenciais ou serviço externo escolhidos. R01 tem estrutura de padrões implementada; uso real do desembarque depende da integração geográfica futura. Jornada diária B07/B08, sequência B10 e ordem/otimização B16 continuam fora da B06. Confirmações existentes ainda não são entidades implementadas; B06 não cria nem altera essas futuras jornadas.
 
 10 tarefas, 150 testes totais (18 novos), build/lint/tipos aprovados. [Evidências](../specs/005-grupos-locais/verification.md). Migração explícita em dev/test locais, aplicação sem DELETE/DDL, nenhuma dependência nova ou mudança de PostgreSQL/Supabase/infraestrutura. Próxima etapa B07 — jornada e comandos explícitos.
+
+## B07 — decisões e implementação em 23/10/2026
+
+Taís confirmou conjuntamente: “vou” após “só ida” preserva recusa de volta até alteração explícita desse trecho; intenção explícita sem local válido conta na demanda, com pendência obrigatória antes de concluir o planejamento operacional. Sem local inventado ou validação presumida.
+
+[Spec, plano e tarefas B07](../specs/006-jornada-comandos/spec.md) reutilizam B04–B06. Jornada única por aluno/dia, estados/origens por sentido, locais diários separados dos padrões, elegibilidade revalidada na transação e leitura administrativa apenas do dia. Recebimento interno durável antecede interpretação; repetição não reaplica, comando antigo não vence revisão e ordem incerta gera pendência. Mudança de universidade sinaliza ajuste sem mover contexto diário.
+
+Comandos permanecem internos até identificação confiável na integração futura; não há endpoint público de personificação, WhatsApp/IA reais ou mapas. Fechamento das 17h e cancelamento até 22h ficam B08; tratamento ampliado de eventos externos/concorrência, B09. Confirmação sem local não autoriza concluir planejamento; bloqueio operacional será consumido em B12. [Evidências](../specs/006-jornada-comandos/verification.md). Próxima etapa B08.
+B07 verificada: 11 tarefas, 182 testes totais (32 novos), build/lint/tipos aprovados. Migração em dev/test locais, sem registros sintéticos remanescentes.
+
+## B08 — decisão e implementação em 24/10/2026
+
+Taís confirmou: perda de elegibilidade antes do fechamento impede nova volta padrão; preservar confirmações existentes e sinalizar ajuste manual. Repetição do fechamento não cria nova confirmação após reativação; nova informação tempestiva válida é conciliada na sua revisão, com revalidação atual.
+
+[Spec B08](../specs/007-fechamento-cancelamento/spec.md), plano e tarefas reutilizam B07. Fechamento por jornada e lote limitado, origem padrao_fechamento, cancelamento no intervalo [17h,22h) e reconciliação pelo recebimento durável. Recusa tempestiva prevalece sobre derivação de fechamento; atualização anterior da ida não restaura volta cancelada. Cancelamento que depende de interpretação anterior fica registrado e é conciliado, sem presumir confirmação. Locais ausentes/inativos continuam pendência, sem retirar intenção da demanda.
+
+Executor e comandos são internos; leitura administrativa atual mostra origem, pendências e orientação determinística para o aluno. Nenhuma mensagem foi enviada e nenhum cron/agendador real foi instalado. B14/B18 tratarão execução agendada/integrações; B09 ampliará evidências de ordenação externa, falhas e concorrência. Migração aditiva preserva B07 e recusa reversão com dados B08 que seriam perdidos. [Evidências](../specs/007-fechamento-cancelamento/verification.md). Próxima etapa B09.
+B08 verificada: 10 tarefas, 210 testes totais (28 novos), build/lint/tipos aprovados. Migração em dev/test locais, sem pendências ou registros sintéticos remanescentes.
+
+## B09 — implementação em 24/10/2026
+
+Reutilizadas as decisões de recebimento durável, idempotência e ordem incerta, sem novas regras de negócio. [Spec B09](../specs/008-idempotencia-concorrencia/spec.md): entrada interna `receiveUnordered`, recuperação transacional e lote com resultados `processed`/`failed`, incluindo pendências. Processado não significa planejamento operacional aprovado.
+
+Falhas injetadas pela porta de persistência nos testes usam transações PostgreSQL reais: recibo, jornada e resultado não deixam efeitos parciais. Reentrega conserva o primeiro recebimento efetivamente durável; concorrência não duplica demanda nem restaura volta cancelada. Sem migração, dependência ou alteração de infraestrutura.
+
+O refinamento de ordenação externa nesta etapa é encaminhar entrada sem prova para pendência. Identificação, envelope e prova do provedor serão implementados em B18; não foram inventados contratos da Evolution API. [Evidências B09](../specs/008-idempotencia-concorrencia/verification.md). Próxima etapa B10.
+
+## B10 — decisões confirmadas e implementação local
+
+Confirmado B10: após recusa, não repetir sugestão na mesma sequência; outro local e quatro novas utilizações do alternativo permitem nova proposta. Uso confirmado sem local identificado suspende a sugestão até resolução e recálculo, preservando a confirmação na demanda.
+
+[Especificação](../specs/009-padroes-sequencia/spec.md), plano e tarefas reaproveitam B06–B09. Sequências derivadas das jornadas atuais, uma contribuição por data/trecho; cancelamento e revisão recalculam sem duplicar registros. Aceite/pedido explícito registra evidência e altera somente o padrão, preservando jornada do dia. Leitura administrativa atual protegida; comandos internos usam recibo durável e prazo anterior às 17h. Mensagens/identidade real continuam B14/B18. Nova tabela mínima de decisões com migração aditiva e reversão bloqueada quando houver evidências. [Verificação](../specs/009-padroes-sequencia/verification.md).
+
+## B11 — disponibilidade e frota
+
+Decisões B11 confirmadas em 25/10/2026: disponibilidade por faixas de início/fim informadas pela empresa e associadas às etapas; ciclo intermunicipal inclui ida, permanência e retorno. Programação semanal por veículo, com exceção por data prevalecendo. Sem configuração, não presumir disponibilidade.
+
+[Spec B11](../specs/010-frota-disponibilidade/spec.md), plano e tarefas reutilizam autorização/cadastros existentes. Veículos e motoristas são cadastros operacionais; cadastrar motorista não cria login nem concede acesso. Avaliação de propostas verifica disponibilidade integral, grupos/motoristas ativos e sobreposições do lote; mesmo veículo intermunicipal e motoristas por trecho. Não reserva recursos nem confirma planejamento; B12 revalidará contra ocupações persistidas, inclusive datas adjacentes. [Evidências](../specs/010-frota-disponibilidade/verification.md).
+
+## B12 — alocação e planejamento
+
+Confirmado por Taís em 25/10/2026: opções/rascunhos podem ser consultados antes das 17h; confirmação definitiva somente após fechamento e resolução das pendências. A empresa pode escolher manualmente veículo maior disponível/suficiente; o menor adequado continua recomendado, com equivalentes.
+
+[Spec B12](../specs/011-alocacao-planejamento/spec.md) implementa demanda por universidade/grupo, rascunho versionado e confirmação transacional. Locais inválidos não reduzem demanda; impedem confirmação. Troca de rascunho preserva a fotografia e ocupações anteriores até confirmação válida. Cancelamento/alteração de jornada sinaliza revisão, sem trocar veículo nem gerar mensagem. Conflitos de veículo/motorista incluem datas adjacentes; reuso posterior permitido. [Evidências](../specs/011-alocacao-planejamento/verification.md). Correções da equipe permanecem B13; infraestrutura e integrações reais inalteradas.
+
+## B13 — correções da equipe
+Confirmado por Taís: correção altera apenas os trechos selecionados, sem inferir volta pela ida manual; a equipe pode encerrar pendências anteriores depois de revisá-las explicitamente e registrar justificativa. Mensagens antigas revisadas não desfazem a correção; novo cancelamento válido do aluno continua permitido.
+
+[Spec B13](../specs/012-correcoes-equipe/spec.md) reutiliza autorização, jornada, elegibilidade, locais, sequências e planejamento. Registro mínimo identifica origem da equipe, responsável, instante e motivo. Revisões concorrentes e reenvios são protegidos; correção com excesso sinaliza ajuste e preserva ocupações até substituição válida. Não gera WhatsApp automático, muda padrões silenciosamente ou contorna elegibilidade. [Evidências](../specs/012-correcoes-equipe/verification.md).
+
+## B17 — revisão integrada do backend
+Revisão técnica autorizada em 26/10/2026, sem nova regra de negócio. A [matriz R01–R22/O01](../specs/016-revisao-backend/coverage.md) vincula evidências locais e dependências externas. O cenário integrado exercita falha de envio, resposta recebida no prazo e interpretada após fechamento, planejamento, correção de endereço, publicação e cancelamento.
+
+Corrigido filtro que retirava indevidamente aluno confirmado do trecho intermunicipal quando seu ponto local era desativado. Conforme B15, universidade/sentido inequívocos preservam o passageiro com local pendente e alerta; associação local inválida continua fora da lista local até ajuste. Não há troca automática de grupo ou veículo. [Verificação B17](../specs/016-revisao-backend/verification.md).
+
+## B16 — trajeto e contingência
+Confirmado por Taís em 26/10/2026: local novo é inserido manualmente pela equipe na ordem; enquanto houver local confirmado sem posição, não publicar itinerário completo. Preservar passageiro, demanda e alocação. Alterar ordem padrão exige nova publicação explícita para atualizar a orientação do motorista; até lá, manter última ordem publicada com alerta. Cancelamentos filtram paradas sem passageiros imediatamente.
+
+Ordem por grupo/sentido e publicação por data/grupo são separadas. Publicação revalida prévia, revisão e planejamento confirmado; substituição confirmada do planejamento exige publicação compatível. Autorização/janela B15 preservadas. Preparação automática usa contrato interno e teste simulado de permutação exata, sem dados pessoais ou publicação automática. Viabilidade condicionada a fornecedor, resolução geográfica, âncoras e validação viária em B18; nenhuma integração real ou decisão de abandonar O01. [Spec](../specs/015-trajeto-contingencia/spec.md), [pesquisa](../specs/015-trajeto-contingencia/research.md) e [verificação](../specs/015-trajeto-contingencia/verification.md).
+
+## B15 — consultas operacionais e motorista
+Confirmado por Taís em 26/10/2026: consultar a data atual e a operação anterior enquanto houver trecho confirmado ainda não encerrado pelo horário previsto, inclusive após meia-noite. Isso não cria histórico pesquisável nem reabre prazos de comandos.
+
+Durante revisão, preservar veículo/trecho confirmado com alerta; retirar cancelados imediatamente e mostrar os demais confirmados atuais somente quando a associação ao trecho for inequívoca. Mudança de grupo não transfere automaticamente passageiros entre trechos locais; intermunicipal mantém associação por universidade/sentido. Ambiguidades ficam para a equipe. Vínculo exclusivo conta/motorista é explícito e gerenciado somente pelo admin. [Spec B15](../specs/014-consultas-operacionais/spec.md).
+
+## B14 — mensagens e agendamentos simulados
+Confirmado por Taís em 26/10/2026: após indisponibilidade, recuperar somente o contato mais recente ainda pertinente antes das 17h, sem acumular anteriores; após 17h não recuperar consultas/lembretes. Extra válido iniciado pelo aluno recebe os próximos lembretes de trechos pendentes, sem consulta inicial em dia não habitual.
+
+[Spec B14](../specs/013-mensagens-agendamentos/spec.md) reutiliza calendário, jornada, fechamento e autorização. Mensagens e tentativas são persistidas antes do adaptador, com revalidação no despacho e retry administrativo versionado. Falha não altera viagem; sending/unknown exigem reconciliação futura, sem reenvio cego. Primeiro recebimento elegível identifica quais lembretes são posteriores ao extra; correção manual preserva esse marcador e não dispara comunicação. Porta padrão desabilitada e executor interno simulável, sem cron ou fornecedor conectado. [Evidências](../specs/013-mensagens-agendamentos/verification.md). Próxima etapa B15.

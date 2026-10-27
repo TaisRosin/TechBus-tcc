@@ -1,6 +1,8 @@
 # TechBus — backend
 
-Base B02 e autorização B03: perfis fixos, vínculo ativo, gestão de acesso e proteção do último admin. [Guia B03](../specs/002-autorizacao-equipe/quickstart.md). Demais regras seguem o [backlog](../docs/backlog.md).
+Núcleo local implementado até B17: autorização, cadastros, vigências, calendários, locais, jornadas, fechamento/cancelamento, padrões, frota, planejamento, correções, mensagens persistentes, consultas e itinerários manuais. Consulte a [revisão integrada B17](../specs/016-revisao-backend/verification.md), a [matriz de cobertura](../specs/016-revisao-backend/coverage.md) e o [backlog](../docs/backlog.md).
+
+Persistência real em PostgreSQL local, com TypeORM para conexões, transações e migrações e consultas SQL explícitas. Integrações externas permanecem em B18: Supabase/Auth, WhatsApp/IA, agendador, validação geográfica e cálculo viário. Frontend e avaliação acadêmica seguem B19/B20. A aprovação local não comprova operação em produção.
 
 ## Ferramentas locais
 
@@ -43,8 +45,12 @@ npm run test:e2e
 npm run start:dev
 ```
 
-Integração requer o cluster de testes. A verificação de isolamento também consulta somente metadados de desenvolvimento, sem alterar dados. Rotas técnicas: GET /health/live e /health/ready. Nenhuma rota de negócio/autenticação está entregue em B02.
+Integração requer os dois clusters: grava dados sintéticos no banco de testes e consulta metadados de desenvolvimento para verificar isolamento e privilégios. Rotas técnicas: GET /health/live e /health/ready. As rotas de negócio estão documentadas na [API](../docs/api.md), mas exigem autenticação, cuja integração real ainda está pendente.
 
 Migrações são explícitas: `npm run migration:show -- --env dev`, `migration:run` ou `migration:revert`, usando `--env dev` ou `--env test`. Sem synchronize e sem migrações automáticas no bootstrap. Fixtures não fazem parte das migrações da aplicação.
 
-B03 aplica guard global, sessão/perfil atual e alteração de acesso transacional. A execução normal recusa identidades enquanto Supabase Auth não está conectado; tokens sintéticos existem apenas nos testes. Convites não são enviados: contrato reservado ao admin informa indisponibilidade. Regras de atribuição usam porta, com consultas reais de viagens previstas em B15. Ver contratos/limites no guia B03.
+B03 aplica guard global, sessão/perfil atual e alteração de acesso transacional. A execução normal recusa identidades enquanto Supabase Auth não está conectado; tokens sintéticos existem apenas nos testes. Convites não são enviados: contrato reservado ao admin informa indisponibilidade. B15 entrega consultas persistidas das próprias atribuições confirmadas do motorista, verificadas com identidade simulada nos testes. Ver [contratos B15](../specs/014-consultas-operacionais/contracts/http.md).
+
+## Versionamento
+
+Versionar código, testes, migrações, especificações, documentação e package-lock.json. Credenciais, clusters locais, dependências e artefatos gerados ficam fora do Git conforme o .gitignore da raiz. Os arquivos .env.example e .env.test.example documentam os campos sem senhas; cada ambiente gera suas próprias credenciais.
