@@ -54,7 +54,7 @@ export class PostgresRegistryStore extends RegistryStore {
         await this.initializing;
       }
       return await this.source.transaction('READ COMMITTED', (manager) =>
-        work(this.port(manager)),
+        work(PostgresRegistryStore.transactionPort(manager)),
       );
     } catch (error) {
       if (error instanceof AccessError) throw error;
@@ -82,7 +82,7 @@ export class PostgresRegistryStore extends RegistryStore {
       throw new AccessError('REGISTRY_UNAVAILABLE', 503);
     }
   }
-  private port(m: EntityManager): RegistryTransaction {
+  static transactionPort(m: EntityManager): RegistryTransaction {
     return {
       itineraries: itineraryQueries(m),
       messages: messageQueries(m),

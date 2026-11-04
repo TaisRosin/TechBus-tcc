@@ -1,3 +1,5 @@
+import { readEvolutionConfig, type EvolutionConfig } from '../whatsapp/config';
+import { readGeminiConfig, type GeminiConfig } from '../interpretation/gemini';
 export class ConfigurationError extends Error {
   constructor(field: string) {
     super(`CONFIG_INVALID: ${field}`);
@@ -11,6 +13,8 @@ export interface DatabaseConfig {
   password: string;
 }
 export interface Environment {
+  evolution?: EvolutionConfig;
+  gemini?: GeminiConfig;
   mode: 'development' | 'test';
   port: number;
   database: DatabaseConfig;
@@ -36,7 +40,11 @@ export function readEnvironment(raw: NodeJS.ProcessEnv): Environment {
     Number(raw.PORT) > 65535
   )
     invalid('PORT');
+  const evolution = readEvolutionConfig(raw);
+  const gemini = readGeminiConfig(raw);
   return {
+    ...(evolution ? { evolution } : {}),
+    ...(gemini ? { gemini } : {}),
     mode: mode as Environment['mode'],
     port: Number(raw.PORT),
     database: {

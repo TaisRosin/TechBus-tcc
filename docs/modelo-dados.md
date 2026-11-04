@@ -1,5 +1,13 @@
 # Modelo de dados — proposta conceitual
 
+## Persistência B18.3
+
+Complemento: conversation_jobs registra a reserva de processamento; journey_acknowledgements guarda o recibo transacional e a tentativa de despacho. Migrações1794400000000/1794500000000 preservam evidências de processamento/envio. [Estados e limites](../specs/019-interpretacao-mensagens/automation.md).
+
+`message_interpretations` tem chave/FK event_id para whatsapp_events, estado processing/completed, origem, versão técnica, proposta JSON restrita, código e instantes. Uma tentativa por evento; sem segredo/envelope bruto. Aplicação sem DELETE/DDL, reversão protegida; migração1794200000000 aditiva em dev/test. Recibo, jornada, aluno e primeiro horário não são reescritos. [Dados](../specs/019-interpretacao-mensagens/data-model.md).
+
+B18.1 (28/10/2026): migração aditiva OwnAuth1794000000000 acrescenta auth_credentials, auth_sessions, auth_events e auth_attempt_windows, preservando team_users.id/subject e vínculos. E-mail normalizado único, senhas/tokens sem persistência em claro, estados de troca/revogação, aplicação sem DDL/DELETE e eventos sem UPDATE. [Modelo efetivo](../specs/017-autenticacao-propria/data-model.md). Substitui a pendência de modelagem de autenticação abaixo; nenhuma conta padrão ou credencial real criada.
+
 [Início](../README.md) · [Arquitetura](arquitetura.md) · [Dados](modelo-dados.md) · [API](api.md) · [Backlog](backlog.md) · [Regras](requisitos.md)
 
 Entidades e restrições para orientar o backend. B03 implementa somente a tabela mínima de equipe e sua migração, conforme [dados B03](../specs/002-autorizacao-equipe/data-model.md); B04 implementa catálogo fixo de universidades, alunos e vigências conforme [dados B04](../specs/003-cadastros-vigencias/data-model.md); B05 implementa calendário semanal e exceções conforme [dados B05](../specs/004-calendarios-elegibilidade/data-model.md); B06 implementa grupos, regiões, pontos, locais de retorno validados e padrões por trecho conforme [dados B06](../specs/005-grupos-locais/data-model.md); B07 implementa jornada diária única e recebimentos duráveis conforme [dados B07](../specs/006-jornada-comandos/data-model.md); B08 amplia jornada/recibos com marcas de fechamento, origem padrão e cancelamento conforme [dados B08](../specs/007-fechamento-cancelamento/data-model.md); demais entidades seguem propostas. TypeORM e migrações versionadas com `synchronize: false` estão escolhidos; modelagem física dos próximos módulos segue pendente. IDs técnicos, datas de criação/alteração e versão de concorrência são propostos. Não incluir financeiro, presença física ou histórico público.
@@ -8,7 +16,7 @@ Entidades e restrições para orientar o backend. B03 implementa somente a tabel
 
 | Entidade | Campos essenciais propostos | Relações/restrições |
 | --- | --- | --- |
-| UsuarioEquipe | identidade de login, perfil admin/operador/motorista, ativo | Convites e perfis só admin; perfil único/fixo, sem personalização, preservando último admin ativo; identidade vinculada ao Supabase Auth; e-mail individual, status e permissões operacionais validados no NestJS. Não armazenar senha do usuário neste cadastro. |
+| UsuarioEquipe | identidade de login, perfil admin/operador/motorista, ativo | Criação de contas, recuperação e perfis só admin; perfil único/fixo, sem personalização, preservando último admin ativo; autenticação própria no NestJS aprovada em B18, com identificação individual, status e permissões validados no backend. Persistência de credenciais e sessões será desenhada na especificação B18; nenhuma mudança física implementada. |
 | Motorista | nome, vínculo opcional com UsuarioEquipe | Ligação ao usuário necessária para liberar suas viagens; não inferir acesso pelo nome. |
 | Universidade | nome, dias de operação habituais | Unimater/Unidep no recorte; 1:N alunos e exceções. |
 | ExcecaoCalendario | universidade, data, opera, motivo | Uma exceção por universidade/data, prevalece sobre semana habitual. |
@@ -96,6 +104,10 @@ group_stop_orders guarda revisão e sequência de IDs canônicos por grupo. publ
 
 ## Implementação B15
 driver_access_links mantém associação exclusiva conta/motorista e revisão, preservando a linha ao revogar. operation_manifests registra vínculos aluno/sentido/universidade/grupo por versão confirmada, sem edição pela aplicação. Plano anterior sem manifesto exige reconfirmação antes de publicar passageiros; não há preenchimento retroativo presumido. Reversão recusa dados existentes. [Modelo físico B15](../specs/014-consultas-operacionais/data-model.md).
+
+## Implementação B18.2
+
+`whatsapp_events` guarda projeção limitada, identidade externa única, primeiro recebimento e conflito; FK composta associa aluno/recibo B07. `whatsapp_attempts` referencia tentativa/mensagem B14 e ID comprovado do fornecedor. Sem envelope bruto, DELETE/DDL pela aplicação ou retenção automática; reversão bloqueada com dados. Migração1794100000000 aplicada em dev/test. Banco Evolution totalmente separado. [Modelo físico](../specs/018-whatsapp-local/data-model.md).
 
 ## Implementação B14
 outgoing_messages e message_attempts separam comunicação de confirmação de viagem; chave aluno/data/slot e reserva transacional evitam duplicação concorrente. Jornada guarda início elegível do pedido extra e seu instante. Aplicação sem DELETE/DDL, reversão bloqueada com evidências; nenhuma retenção automática. [Modelo físico B14](../specs/013-mensagens-agendamentos/data-model.md).

@@ -6,6 +6,8 @@
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
+    "auth:bootstrap": "ts-node src/access/cli/auth-bootstrap.ts",
+    "auth:recover-admin": "ts-node src/access/cli/auth-recover-admin.ts",
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
@@ -21,7 +23,8 @@
     "test:integration": "jest --selectProjects integration --runInBand",
     "migration:show": "ts-node src/infrastructure/database/migrate.ts show",
     "migration:run": "ts-node src/infrastructure/database/migrate.ts run",
-    "migration:revert": "ts-node src/infrastructure/database/migrate.ts revert"
+    "migration:revert": "ts-node src/infrastructure/database/migrate.ts revert",
+    "gemini:smoke": "node scripts/gemini-smoke.cjs"
   },
   "dependencies": {
     "@nestjs/common": "11.2.7",

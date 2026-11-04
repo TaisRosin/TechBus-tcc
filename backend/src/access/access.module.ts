@@ -12,15 +12,26 @@ import { AccessFilter } from './http/access.filter';
 import { AccessGuard } from './http/access.guard';
 import type { DatabaseConfig } from '../config/environment';
 import { PostgresTeamStore } from './infrastructure/postgres-team-store';
+import { PostgresAuthStore } from './infrastructure/postgres-auth-store';
+import { PasswordHasher } from './infrastructure/password-hasher';
+import { SessionVerifier } from './infrastructure/session-verifier';
+import { AuthService } from './application/auth.service';
+import { AuthController } from './http/auth.controller';
 
 @Module({
-  controllers: [AccessController],
+  controllers: [AccessController, AuthController],
   providers: [
     {
       provide: IdentityVerifier,
-      useValue: {
-        verify: () => Promise.reject(new AccessError('AUTH_UNAVAILABLE', 503)),
-      },
+      useFactory: (auth: AuthService) => new SessionVerifier(auth),
+      inject: [AuthService],
+    },
+    { provide: PasswordHasher, useFactory: () => new PasswordHasher() },
+    {
+      provide: AuthService,
+      useFactory: (store: PostgresAuthStore, hasher: PasswordHasher) =>
+        new AuthService(store, hasher),
+      inject: [PostgresAuthStore, PasswordHasher],
     },
     {
       provide: TripAssignments,
@@ -45,6 +56,10 @@ export class AccessModule {
     return {
       module: AccessModule,
       providers: [
+        {
+          provide: PostgresAuthStore,
+          useFactory: () => new PostgresAuthStore(config),
+        },
         { provide: TeamStore, useFactory: () => new PostgresTeamStore(config) },
       ],
     };

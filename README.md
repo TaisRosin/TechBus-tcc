@@ -1,8 +1,12 @@
 # TechBus — Sistema para gestão de transporte universitário
 
+**Estado vigente em 04/11/2026:** [situação consolidada e pendências](docs/estado-atual.md). Próximo incremento: [contexto de conversa — B18.4](specs/020-contexto-conversa/tasks.md), planejado, não implementado. Testes manuais de Taís adiados; B18.3/T019 permanece aberto. As atualizações de outubro abaixo são históricas onde divergirem desse registro.
+
 Documentação consolidada do TCC de Taís. TechBus organiza a demanda, a operação e o apoio à decisão de uma empresa de transporte universitário noturno, atendendo Unimater e Unidep. WhatsApp e IA são componentes de confirmação e comunicação; o produto inclui cadastros, calendários, contratos por vigência, painel, acessos e recomendação intermunicipal.
 
 ## Funcionamento essencial
+
+Atualização de 28/10/2026: [B18.2 — canal WhatsApp local](specs/018-whatsapp-local/spec.md) pareado e primeiro texto real recebido/persistido. [Evidências](specs/018-whatsapp-local/verification.md). [B18.3 — propostas de interpretação](specs/019-interpretacao-mensagens/spec.md) acrescenta regras diretas e adaptador Gemini, sem confirmação automática enquanto a ordem não for comprovada. [Validação e limites](specs/019-interpretacao-mensagens/verification.md). Envios automáticos continuam desativados.
 
 Coleta compartilhada em São Lourenço até a fiscalização; transferência por universidade para Pato Branco; o mesmo veículo permanece e retorna da universidade até a fiscalização; distribuição local reúne novamente alunos por regiões. Empresa define grupos distintos por sentido e escolhe veículos locais. O sistema recomenda apenas veículos intermunicipais por universidade, usando max(ida, volta), com confirmação da empresa.
 
@@ -14,11 +18,13 @@ O cálculo automático de trajeto é muito desejado e de alta prioridade, condic
 
 ## Direção tecnológica e execução
 
-Backend em NestJS; frontend em React com Vite, Tailwind CSS e shadcn/ui, escolhidos em 20/10/2026. Evolution API está escolhida; integração via n8n ou diretamente pelo backend ainda será definida. IA OpenAI (chamada de “ChatGPT” pela usuária) ou Gemini será escolhida depois por Taís; Gemini tem preferência experimental condicionada. Supabase escolhido para dados sobre PostgreSQL; TypeORM e migrações versionadas com `synchronize: false` confirmados. Supabase Auth escolhido para a equipe, com e-mail/senha, convite administrativo e recuperação por e-mail; autorização permanece no NestJS. Railway e Hetzner são indicações do orientador, com uso/hospedagem ainda abertos. Versões do backend fixadas e verificadas em B02; versões de frontend/serviços, mapas e modelagem física de domínio permanecem pendentes. Vite fica no frontend; Nest CLI no backend.
+Backend em NestJS; frontend em React com Vite, Tailwind CSS e shadcn/ui, escolhidos em 20/10/2026. Evolution API escolhida; integração direta pelo NestJS, sem n8n, confirmada em 27/10/2026. API Gemini escolhida para iniciar os testes B18; regras diretas para respostas simples/comandos conhecidos e Gemini para linguagem natural, múltiplas intenções ou alterações. Modelo gemini-3.1-flash-lite validado em ensaio local B18.3, com saída estrita, limite de 1024 tokens e timeout de 20 segundos; sem retry automático. PostgreSQL local na máquina de Taís confirmado para os testes B18 em 27/10/2026; banco hospedado fica para avaliação posterior; TypeORM e migrações versionadas com `synchronize: false` confirmados. Autenticação no próprio NestJS com PostgreSQL: login por e-mail individual e senha, contas criadas pelo admin, definição de nova senha no primeiro acesso e após recuperação administrada pelo admin; sem Supabase Auth, cadastro público ou e-mails automáticos de convite/recuperação. Sessão, usuário ativo e permissões validados pelo backend. Railway e Hetzner são indicações do orientador, com uso/hospedagem ainda abertos. Versões do backend fixadas e verificadas em B02; versões de frontend/serviços, mapas e modelagem física de domínio permanecem pendentes. Vite fica no frontend; Nest CLI no backend.
 
-Por orientação do orientador, concluir todo o backend primeiro, preparado para integrações; conectar serviços reais depois. B02 entrega a base local do backend, com testes e PostgreSQL isolado. Integrações reais e contratação não realizadas; preços e gratuidade não verificados.
+Por orientação do orientador, concluir todo o backend primeiro, preparado para integrações; conectar serviços reais depois. B02 entrega a base local do backend, com testes e PostgreSQL isolado. WhatsApp e Gemini têm ensaios reais documentados em B18; automação completa, mapas e hospedagem permanecem pendentes. Preços e gratuidade não presumidos.
 
 ## Documentos
+
+- [B18.1 — autenticação própria](specs/017-autenticacao-propria/spec.md): [plano](specs/017-autenticacao-propria/plan.md) e [20 tarefas](specs/017-autenticacao-propria/tasks.md), implementadas e verificadas no backend local; [evidências](specs/017-autenticacao-propria/verification.md). Login também ao recarregar o painel confirmado; validação completa do navegador em B19.
 
 - [B17 — revisão integrada do backend](specs/016-revisao-backend/spec.md): [cobertura R01–R22/O01](specs/016-revisao-backend/coverage.md), [tarefas](specs/016-revisao-backend/tasks.md) e [validação](specs/016-revisao-backend/verification.md), com limites das integrações futuras.
 
@@ -46,7 +52,7 @@ Por orientação do orientador, concluir todo o backend primeiro, preparado para
 
 - [B04 — cadastros e vigências](specs/003-cadastros-vigencias/spec.md): telefone único, vigências inclusivas sem sobreposição, revisões e inatividade sem apagar registros. Dias habituais podem ser vazios para uso extra. [Tarefas](specs/003-cadastros-vigencias/tasks.md), [validação](specs/003-cadastros-vigencias/verification.md) e [guia local](specs/003-cadastros-vigencias/quickstart.md).
 
-- [B03 — autorização da equipe](specs/002-autorizacao-equipe/spec.md): três perfis fixos, um por usuário, proteção do último administrador ativo e restrição por atribuição. [13 tarefas concluídas](specs/002-autorizacao-equipe/tasks.md), [validação](specs/002-autorizacao-equipe/verification.md) e [guia](specs/002-autorizacao-equipe/quickstart.md). Supabase Auth/convites reais permanecem para B18; nenhum token simulado é aceito no runtime normal.
+- [B03 — autorização da equipe](specs/002-autorizacao-equipe/spec.md): três perfis fixos, um por usuário, proteção do último administrador ativo e restrição por atribuição. [13 tarefas concluídas](specs/002-autorizacao-equipe/tasks.md), [validação](specs/002-autorizacao-equipe/verification.md) e [guia](specs/002-autorizacao-equipe/quickstart.md). Autenticação própria entregue na B18.1 conforme decisão que substitui Supabase Auth/convites; nenhum token simulado é aceito no runtime normal.
 
 - [Primeiro incremento SDD: B02 — base do backend](specs/001-base-backend/spec.md), [plano técnico](specs/001-base-backend/plan.md) e [18 tarefas](specs/001-base-backend/tasks.md): implementação autorizada em 22/10/2026; resultados em [verificação](specs/001-base-backend/verification.md) e execução no [quickstart](specs/001-base-backend/quickstart.md). [Constituição 1.0.0](.specify/memory/constitution.md) preenchida com decisões existentes; versões e PostgreSQL local registrados em [pesquisa](specs/001-base-backend/research.md), com patches efetivos documentados. Base local disponível; autenticação real e módulos operacionais continuam nas próximas etapas.
 

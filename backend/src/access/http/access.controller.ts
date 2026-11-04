@@ -1,4 +1,13 @@
-import { Body, Controller, Get, Param, Patch, Post, Req } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Header,
+  Param,
+  Patch,
+  Post,
+  Req,
+} from '@nestjs/common';
 import { AccessError, userView } from '../domain/access';
 import { AccessService } from '../application/access.service';
 import { RequireAction } from './access-policy';
@@ -8,6 +17,7 @@ import type { AccessRequest } from './access.guard';
 export class AccessController {
   constructor(private readonly access: AccessService) {}
   @Get('session')
+  @Header('Cache-Control', 'no-store')
   @RequireAction('session')
   session(@Req() req: AccessRequest) {
     return userView(req.teamUser!);
@@ -24,6 +34,6 @@ export class AccessController {
   @Post('users/invitations')
   @RequireAction('users:manage')
   invite(): never {
-    throw new AccessError('INVITATIONS_UNAVAILABLE', 503);
+    throw new AccessError('INVITATIONS_REPLACED', 410);
   }
 }

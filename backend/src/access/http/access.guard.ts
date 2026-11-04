@@ -38,6 +38,12 @@ export class AccessGuard implements CanActivate {
         action,
         typeof req.params.id === 'string' ? req.params.id : undefined,
       );
+      // Only authorized, interactive requests renew activity. Identity checks alone do not.
+      if (
+        action !== 'session' &&
+        req.headers['x-techbus-activity'] !== 'passive'
+      )
+        await this.identities.touch?.(match[1]);
     } catch (error) {
       if (error instanceof AccessError) throw error;
       throw new AccessError('ACCESS_UNAVAILABLE', 503);

@@ -1,28 +1,36 @@
 # Arquitetura do backend — proposta
 
+## Interpretação B18.3
+
+InterpretationService usa o WhatsAppStore e eventos duráveis existentes. Reserva tentativa transacional antes de regra/Gemini, executa fornecedor fora de locks e revalida autorização/conflito/aluno na conclusão. Gemini recebe somente texto e instrução fixa, sem ferramentas/telefone/cadastro; validação estrita da proposta no backend. Serviço não chama aplicação de jornada nem promove ordering. Endpoint administrativo explícito, sem worker/cron/autoenvio. [Plano](../specs/019-interpretacao-mensagens/plan.md).
+
+B18.1 (28/10/2026): identidade própria conectada à autorização B03 por SessionVerifier. Sessões opacas e hashes de senha no PostgreSQL local; scrypt assíncrono limitado, relógio substituível, reset/revogação transacionais e manutenção local restrita. [Plano efetivo](../specs/017-autenticacao-propria/plan.md). Frontend B19 deverá guardar token somente em memória, exigir login em abertura/recarga/restauração, marcar polls passivos e validar proteção contra XSS/cache. Nenhuma conexão Evolution/Gemini/Maps realizada nesta entrega.
+
 [Início](../README.md) · [Arquitetura](arquitetura.md) · [Dados](modelo-dados.md) · [API](api.md) · [Backlog](backlog.md) · [Regras](requisitos.md)
 
-Desenho iniciado em 14/10/2026 e consolidado em 22/10/2026, com B02–B08 implementadas localmente conforme o [backlog](backlog.md); demais módulos ainda propostos. As regras confirmadas estão em [requisitos](requisitos.md) e [decisões](decisoes.md). Organização em módulos, contratos e mecanismos abaixo são propostas técnicas revisáveis, com TypeORM/migrações e Supabase Auth confirmados; versões do backend verificadas em [B02](../specs/001-base-backend/research.md); hospedagem pendente.
+Desenho iniciado em 14/10/2026 e consolidado em 22/10/2026, com B02–B08 implementadas localmente conforme o [backlog](backlog.md); demais módulos ainda propostos. As regras confirmadas estão em [requisitos](requisitos.md) e [decisões](decisoes.md). Organização em módulos, contratos e mecanismos abaixo são propostas técnicas revisáveis, com TypeORM/migrações e autenticação própria confirmados; versões do backend verificadas em [B02](../specs/001-base-backend/research.md); hospedagem pendente.
 
 ## Estrutura proposta
 
+Decisão final B18: manter grupos e veículos locais manuais na ida e na volta. Criação automática de grupos e redistribuição entre veículos ficam para implementação futura; contratos existentes continuam sendo a base. Cálculo automático do trajeto dentro dos grupos permanece prioritário.
+
 O projeto local PRM 2026, ainda incompleto, é referência autorizada para organização modular e separação entre frontend e backend. Evidências e limites estão no [registro da referência](decisoes.md#referência-técnica--prm-2026). TypeORM foi confirmado separadamente por Taís. Axios, React Query, versões e configurações do PRM não são automaticamente decisões do TechBus.
 
-Stack escolhida em 20/10/2026, com decisões adicionais consolidadas em 22/10/2026; a organização interna continua proposta. Supabase para dados e Supabase Auth para identidade foram confirmados separadamente. Vite no frontend e Nest CLI no backend. B00 concluída quanto à seleção; escolhas mínimas de B01 concluídas e preparação técnica executada em B02.
+Stack escolhida em 20/10/2026, com decisões adicionais consolidadas em 22/10/2026; a organização interna continua proposta. Decisão B18 de 27/10/2026: PostgreSQL local nos testes e autenticação própria no NestJS substituem a direção anterior de Supabase para dados/identidade. Vite no frontend e Nest CLI no backend. B00 concluída quanto à seleção; escolhas mínimas de B01 concluídas e preparação técnica executada em B02.
 
 Backend modular em NestJS e frontend em React com Vite, Tailwind CSS e shadcn/ui, conforme escolhas de 20/10/2026. Sem microserviços nesta proposta; regras ficam no servidor. A entrada HTTP valida identidade e dados, chama casos de uso e retorna resultados. Casos de uso consultam regras de domínio e persistência por interfaces. Nenhuma regra depende de texto livre ou decisão autônoma da IA.
 
 ```mermaid
 flowchart LR
   P[Painel e motorista] --> E[Entrada autenticada]
-  W[WhatsApp via Evolution API; n8n opcional] --> I[Entrada de integração autenticada]
+  W[WhatsApp via Evolution API; integração direta] --> I[Entrada de integração autenticada]
   I --> A[Interpretação por IA e validação de comando]
   E --> U[Casos de uso e autorização]
   A --> U
   J[Agendador futuro] --> U
   U --> D[Regras de domínio]
   U --> R[Repositórios e transações]
-  R --> B[PostgreSQL no Supabase]
+  R --> B[PostgreSQL local nos testes B18]
   U --> O[Saídas pendentes de comunicação]
   O --> W
 ```
@@ -31,7 +39,7 @@ Diagrama lógico, sem conexão instalada. IA recebe contexto mínimo e devolve i
 
 | Módulo | Responsabilidade e referência |
 | --- | --- |
-| Identidade e acesso | Perfis, convites exclusivos do admin e leitura do motorista restrita às atribuições (R20). Identidade técnica separada da pessoa motorista. |
+| Identidade e acesso | Perfis, criação de contas e recuperação exclusivas do admin e leitura do motorista restrita às atribuições (R20). Identidade técnica separada da pessoa motorista. |
 | Cadastros e elegibilidade | Alunos, vigências sem financeiro, universidade, dias habituais e calendários/exceções; telefone conhecido e dia extra (R01–R03). |
 | Jornada diária | Estado por sentido, comandos explícitos, limites 17h/22h, fechamento padrão e correção da equipe (R05–R11). |
 | Locais | Área/grupo, pontos de ida, endereço de volta, padrão/consentimento e sequência de quatro usos confirmados (R12–R13). |
@@ -54,15 +62,17 @@ Alteração de jornada e invalidação da versão do planejamento são atômicas
 
 | Interface proposta | Entrada e saída | Falha |
 | --- | --- | --- |
-| InterpretarMensagem | Texto/contexto mínimo → intenção, trechos explícitos, locais, necessidade de esclarecer | Sem ação presumida; pendência/clarificação. OpenAI ou Gemini escolhido por Taís depois. |
-| EnviarMensagem | Destinatário e conteúdo aprovado pelo backend → identificador/status de envio | Falha destacada; reenvio controlado, não apaga resposta. Evolution API escolhida; uso de n8n ou integração direta ainda pendente. |
+| InterpretarMensagem | Texto/contexto mínimo → intenção, trechos explícitos, locais, necessidade de esclarecer | Sem ação presumida; pendência/clarificação. API Gemini escolhida para iniciar B18, após regras diretas para respostas simples/comandos conhecidos; respostas curtas exigem contexto inequívoco. Ambos os caminhos passam pela validação do backend. Modelo/parâmetros pendentes. |
+| EnviarMensagem | Destinatário e conteúdo aprovado pelo backend → identificador/status de envio | Falha destacada; reenvio controlado, não apaga resposta. Evolution API escolhida; integração direta pelo NestJS, sem n8n, confirmada em 27/10/2026. |
 | ValidarLocal | Endereço → dentro/fora/indeterminado, local canônico, região/grupo | Indeterminado não é endereço aprovado; preservar válido anterior, destacar impedimento técnico. Método pendente. |
 | CalcularTrajeto | Grupo já definido, locais válidos → percurso | Automático prioritário; plano B quando necessário, sem promessa de otimização. |
-| Persistir / IdentificarUsuario / Relogio / Agendar | Contratos internos para dados, sessão, horário e execução de tarefas | TypeORM e Supabase Auth selecionados; versões, adaptadores e executor de agendamento ainda a detalhar. |
+| Persistir / IdentificarUsuario / Relogio / Agendar | Contratos internos para dados, sessão, horário e execução de tarefas | TypeORM e autenticação própria selecionados; versões, adaptadores e executor de agendamento ainda a detalhar. |
 
 Proposta de caixa de saída persistente: gravar intenção de comunicação com mudança de estado, enviar depois e registrar tentativas. Chaves únicas evitam efeitos repetidos; não prometer envio exatamente uma vez no provedor. Revalidar pendência antes de enviar lembrete, suprimindo mensagem obsoleta. Slots 05h, 11h, 13h, 16h; lote nunca cria confirmações. Após indisponibilidade, não disparar automaticamente todos os lembretes vencidos: política técnica de recuperação a definir.
 
 ## Dados e limites
+
+Atualização B18 em 27/10/2026: os testes manterão o PostgreSQL local na máquina de Taís, sem migração do banco operacional ao Supabase nesta fase. A direção anterior de conexão remota abaixo fica adiada; hospedagem do banco será avaliada posteriormente. Autenticação própria no NestJS substitui Supabase Auth; sem SMTP para acesso no MVP. Testes com integrações dependem da máquina e dos processos locais disponíveis; não constituem operação contínua hospedada.
 
 Supabase para PostgreSQL, TypeORM e migrações versionadas com `synchronize: false` confirmados. Ambiente PostgreSQL isolado de desenvolvimento/testes aprovado como direção, com provisionamento e versões pendentes; conexão remota a definir na integração. Railway/Hetzner sem papel fechado; não requerer serviços externos no primeiro bloco. Segredos e acesso de serviço somente no backend. Credencial de integração não tem permissão de administrador; acesso de motorista é filtrado no servidor, inclusive telefones.
 
@@ -72,11 +82,11 @@ Não são afirmações de capacidades de versões específicas dos fornecedores.
 
 ## Acesso confirmado — implementação futura
 
-Supabase Auth com e-mail/senha individual para admin, operador e motorista, sem cadastro público. SDK no React gerencia autenticação e envia token ao NestJS. O backend verifica autenticidade e validade do token, vínculo ativo e autorização por recurso; nunca aceita perfil informado pelo cliente. Desativação local bloqueia novas solicitações mesmo com token ainda válido. Saída explícita; duração/inatividade dependem de verificação e não têm valores aprovados.
+Autenticação no próprio NestJS com PostgreSQL: login por e-mail individual e senha, contas criadas pelo admin, definição de nova senha no primeiro acesso e após recuperação administrada pelo admin; sem Supabase Auth, cadastro público ou e-mails automáticos de convite/recuperação. Sessão, usuário ativo e permissões validados pelo backend. Desativação bloqueia novas solicitações mesmo com sessão válida. Sessão expira após 1 hora sem uso ou 12 horas desde o login, o que ocorrer primeiro; mecanismo será definido no plano técnico.
 
-Primeiro administrador por procedimento inicial controlado. Depois, somente admin solicita convites pelo backend; usuário valida o convite e escolhe a senha. Convite inválido/expirado exige orientação e reenvio pelo admin. Recuperação por link ao e-mail cadastrado não reativa usuário. Perda/erro de e-mail exige atendimento administrativo com verificação da pessoa. Procedimentos detalhados em B03; SMTP e URLs de retorno configurados/testados em B18.
+Primeiro administrador por procedimento controlado. Somente admin cria contas e inicia recuperação. Usuário define nova senha no primeiro acesso e após recuperação. Não há envio automático de e-mails. Exceção aprovada: responsável técnico recupera acesso do único admin por procedimento restrito na máquina/servidor, exigindo nova senha, sem conceder essa permissão ao operador nem criar novo perfil de aplicação. Primeiro acesso e recuperação usam senha temporária gerada pelo sistema, entregue pelo admin, com troca obrigatória antes da operação. Senha temporária válida por 24 horas; após vencer, admin pode gerar outra. Detalhes técnicos ainda serão especificados.
 
-Autorização deve ser validada durante o backend com substituto controlado de identidade restrito aos testes. Supabase Auth real e demais serviços serão conectados após B17; não apresentar login/convite/recuperação simulados como integrações entregues. Chaves administrativas e credenciais de banco permanecem no backend; o SDK de autenticação no React não concede acesso direto aos dados operacionais.
+B03 validou autorização com identidade substituta restrita aos testes. Autenticação própria real ainda será implementada; simulações não comprovam login entregue. Credenciais de banco e material de autenticação sensível permanecem no backend; o frontend não acessa diretamente dados operacionais.
 
 ## Planejamento implementado B12
 OperationService reutiliza RegistryStore e avaliação B11 na mesma transação. A barreira de locais/jornadas também protege recebimento e confirmação; alunos, calendários e recursos são revalidados sob locks. Rascunho e fotografia confirmada são separados; ocupações absolutas incluem permanência e datas adjacentes. Consulta atual apresenta demanda, pendências e necessidade de ajuste. [Plano B12](../specs/011-alocacao-planejamento/plan.md). Não há escrita externa irrestrita nem novas dependências/serviços.
@@ -92,6 +102,10 @@ ItineraryService mantém ordem padrão e publicação explícita separadas; reus
 
 ## Consultas B15
 ConsultationService reutiliza transações, jornadas, comunicação e avaliação do planejamento. Leitura administrativa consolida estados; motorista recebe somente atribuições confirmadas e passageiros compatíveis com o registro de vínculos capturado na confirmação. Revogação de acesso e mudanças de planejamento são reavaliadas em cada consulta. Sem nova dependência ou serviço externo. [Plano B15](../specs/014-consultas-operacionais/plan.md).
+
+## Canal local implementado B18.2
+
+WhatsAppModule é importado pelo RegistryModule e compartilha WhatsAppStore entre receptor e adaptador B14. Evento e recibo B07 são gravados na mesma transação; saída reserva ledger antes do HTTP, fora dos locks. Segredo de webhook distinto da API key; identidade somente PN cadastrado, sem presumir LID; interpretação futura. Evolution em processo/cluster próprios, sem credenciais TechBus, sem n8n/Redis/Gemini. Fonte fixada e ajustes locais em [infraestrutura](../infrastructure/evolution/README.md); [limites verificados](../specs/018-whatsapp-local/verification.md).
 
 ## Comunicação implementada B14
 Outbox e tentativas locais, relógio injetável, executor interno e porta de envio desabilitada. Preparação/claim usam transações e revalidação; adaptador executa fora dos locks, finalização não altera viagem. Retry administrativo versionado somente para falha conhecida; incerteza aguarda reconciliação futura. Sem fila, cron, fornecedor ou infraestrutura novos. [Plano B14](../specs/013-mensagens-agendamentos/plan.md).

@@ -2,6 +2,7 @@ import type { TeamUser } from '../domain/access';
 
 export abstract class IdentityVerifier {
   abstract verify(token: string): Promise<{ subject: string }>;
+  touch?(token: string): Promise<void>;
 }
 export abstract class TripAssignments {
   abstract isAssigned(userId: string, tripId: string): Promise<boolean>;

@@ -1,5 +1,7 @@
 # Skills de desenvolvimento — seleção confirmada e instalações
 
+B18.2 em 28/10/2026: Spec Kit, TDD e referências NestJS/PostgreSQL reutilizadas. Catálogo sem skill específica Evolution; código/lockfile oficiais da versão fixada revisados, sem instalar skill desconhecida. [Pesquisa e fontes](../specs/018-whatsapp-local/research.md). Nenhuma entrevista adicional de negócio foi necessária para este incremento técnico autorizado.
+
 [Início](../README.md) · [Backlog](backlog.md) · [Decisões](decisoes.md)
 
 Pesquisa de 20/10/2026 para B00, com instalações solicitadas por Taís em 21/10/2026. Seleção consolidada em 22/10/2026 conforme a entrevista; distinguir selecionada, instalada e opcional no registro abaixo. Não houve auditoria completa de todos os arquivos, scripts e dependências. Nenhuma implementação do TechBus foi iniciada.

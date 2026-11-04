@@ -12,7 +12,11 @@ export class AppModule {
       imports: [
         HealthModule.register(config.database),
         AccessModule.register(config.database),
-        RegistryModule.register(config.database),
+        RegistryModule.register(
+          config.database,
+          config.evolution,
+          config.gemini,
+        ),
       ],
     };
   }

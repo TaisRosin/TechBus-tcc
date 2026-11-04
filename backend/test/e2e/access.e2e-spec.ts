@@ -164,8 +164,8 @@ describe('Access HTTP boundary', () => {
       .post('/api/v1/users/invitations')
       .set('Authorization', 'Bearer valid-admin')
       .send({})
-      .expect(503)
-      .expect({ code: 'INVITATIONS_UNAVAILABLE' });
+      .expect(410)
+      .expect({ code: 'INVITATIONS_REPLACED' });
   });
   it('has no test-token bypass in the normal application', async () => {
     const module = await Test.createTestingModule({
@@ -179,8 +179,8 @@ describe('Access HTTP boundary', () => {
       await request(normal.getHttpServer())
         .get('/api/v1/session')
         .set('Authorization', 'Bearer valid-admin')
-        .expect(503)
-        .expect({ code: 'AUTH_UNAVAILABLE' });
+        .expect(401)
+        .expect({ code: 'UNAUTHENTICATED' });
       await request(normal.getHttpServer()).get('/health/live').expect(200);
     } finally {
       await normal.close();

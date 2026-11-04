@@ -89,6 +89,11 @@ export class PostgresTeamStore extends TeamStore {
           'UPDATE app.team_users SET role=$2, active=$3, version=$4 WHERE id=$1',
           [user.id, user.role, user.active, user.version],
         );
+        if (!user.active)
+          await manager.query(
+            'UPDATE app.auth_sessions SET revoked_at=COALESCE(revoked_at,now()) WHERE user_id=$1',
+            [user.id],
+          );
       },
     };
   }

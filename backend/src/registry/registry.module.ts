@@ -1,4 +1,9 @@
 import { Module, type DynamicModule } from '@nestjs/common';
+import { WhatsAppModule } from '../whatsapp/whatsapp.module';
+import type { EvolutionConfig } from '../whatsapp/config';
+import type { GeminiConfig } from '../interpretation/gemini';
+import { WhatsAppStore } from '../whatsapp/store';
+import { EvolutionSender } from '../whatsapp/sender';
 import type { DatabaseConfig } from '../config/environment';
 import { RegistryStore } from './application/ports';
 import { RegistryService } from './application/registry.service';
@@ -53,9 +58,14 @@ import { ItineraryController } from '../itinerary/http/itinerary.controller';
   ],
 })
 export class RegistryModule {
-  static register(config: DatabaseConfig): DynamicModule {
+  static register(
+    config: DatabaseConfig,
+    evolution?: EvolutionConfig,
+    gemini?: GeminiConfig,
+  ): DynamicModule {
     return {
       module: RegistryModule,
+      imports: [WhatsAppModule.register(config, evolution, gemini)],
       providers: [
         {
           provide: ItineraryService,
@@ -78,7 +88,14 @@ export class RegistryModule {
             new ConsultationService(store, new SystemClock(), operations),
           inject: [RegistryStore, OperationService],
         },
-        { provide: MessageSender, useClass: DisabledMessageSender },
+        {
+          provide: MessageSender,
+          useFactory: (store: WhatsAppStore) =>
+            evolution
+              ? new EvolutionSender(store, evolution)
+              : new DisabledMessageSender(),
+          inject: [WhatsAppStore],
+        },
         {
           provide: MessageService,
           useFactory: (
