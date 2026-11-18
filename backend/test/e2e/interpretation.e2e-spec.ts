@@ -106,6 +106,30 @@ describe('Interpretation HTTP authorization', () => {
       code: 'UNKNOWN_CONTACT',
     });
   });
+  it('protects current conversation diagnostics and rejects injected context', async () => {
+    const server = app.getHttpServer();
+    await request(server).get(base).expect(401);
+    await request(server)
+      .get(base)
+      .auth(users[2], { type: 'bearer' })
+      .expect(403);
+    for (const user of users.slice(0, 2)) {
+      const result = await request(server)
+        .get(base)
+        .auth(user, { type: 'bearer' })
+        .expect(200);
+      expect(
+        (result.body as { id: string; clarification: unknown }[]).find(
+          (row) => row.id === id,
+        ),
+      ).toMatchObject({ clarification: null });
+    }
+    await request(server)
+      .post(`${base}/${id}/interpret`)
+      .auth(users[0], { type: 'bearer' })
+      .send({ contextEventId: randomUUID(), replyTo: 'forged' })
+      .expect(400);
+  });
   it('does not expose previous-day events through interpretation', async () => {
     await source.query(
       "UPDATE app.whatsapp_events SET received_at=now()-interval '2 days' WHERE id=$1",

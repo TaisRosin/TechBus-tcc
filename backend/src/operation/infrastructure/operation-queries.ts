@@ -34,24 +34,17 @@ export function operationQueries(m: EntityManager): OperationTransaction {
       );
       for (const v of values)
         await m.query(
-          'INSERT INTO app.operation_occupancies(id,plan_date,plan_version,vehicle_id,driver_id,starts_at,ends_at,active) VALUES($1,$2,$3,$4,$5,$6,$7,true)',
+          'INSERT INTO app.operation_occupancies(id,plan_date,plan_version,vehicle_id,driver_id,stage,side,active) VALUES($1,$2,$3,$4,$5,$6,$7,true)',
           [
             randomUUID(),
             date,
             version,
             v.vehicleId,
             v.driverId,
-            v.start,
-            v.end,
+            v.stage,
+            v.side,
           ],
         );
-    },
-    async conflicts(date, v) {
-      const rows = await m.query<unknown[]>(
-        `SELECT 1 FROM app.operation_occupancies WHERE active AND plan_date<>$1 AND starts_at<$3 AND ends_at>$2 AND ${v.vehicleId ? 'vehicle_id' : 'driver_id'}=$4 LIMIT 1`,
-        [date, v.start, v.end, v.vehicleId ?? v.driverId],
-      );
-      return rows.length > 0;
     },
     async actorId(subject) {
       const rows = await m.query<{ id: string }[]>(

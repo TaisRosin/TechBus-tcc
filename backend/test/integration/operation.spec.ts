@@ -81,13 +81,7 @@ describe('Operation planning on isolated PostgreSQL', () => {
     });
     vehicles.push(v.id);
     await fleet.setWeek(actor, v.id, {
-      week: Array.from({ length: 7 }, () =>
-        ['collection', 'intermunicipal', 'distribution'].map((stage) => ({
-          stage,
-          start: 0,
-          end: 2880,
-        })),
-      ),
+      week: Array(7).fill(true),
       expectedVersion: 1,
     });
     return v.id;
@@ -330,7 +324,7 @@ describe('Operation planning on isolated PostgreSQL', () => {
     expect(options.available.map((x) => x.id)).toContain(larger);
     expect(options.demandToken).toBe(current.demandToken);
     await fleet.setException(actor, v, date, {
-      windows: [],
+      available: false,
       expectedVersion: 2,
     });
     expect(
@@ -428,7 +422,7 @@ describe('Operation planning on isolated PostgreSQL', () => {
           end: 1400,
         })
       ).available.map((v) => v.id),
-    ).not.toContain(values[0].vehicleId);
+    ).toContain(values[0].vehicleId);
   });
   it('blocks invalid places, unresolved interpretation, insufficient capacity and overlapping trips', async () => {
     const id = await student(false);
@@ -559,7 +553,7 @@ describe('Operation planning on isolated PostgreSQL', () => {
     await confirm();
     const vehicleId = values[0].vehicleId;
     await fleet.setException(actor, vehicleId, date, {
-      windows: [],
+      available: false,
       expectedVersion: 2,
     });
     expect((await service.current(actor)).status).toBe('needs_adjustment');
@@ -567,7 +561,7 @@ describe('Operation planning on isolated PostgreSQL', () => {
       code: 'PLANNING_REQUIRES_ADJUSTMENT',
     });
     await fleet.setException(actor, vehicleId, date, {
-      windows: null,
+      available: null,
       expectedVersion: 3,
     });
     const d = values[0].driverId!;
@@ -601,91 +595,64 @@ describe('Operation planning on isolated PostgreSQL', () => {
       code: 'PLANNING_REQUIRES_ADJUSTMENT',
     });
   });
-  it('serializes confirmations across adjacent dates, preventing double allocation and allowing later reuse', async () => {
+  it('allocates independently on adjacent days without clock conflicts', async () => {
     const firstDate = date,
       id = await student();
     await answer(id);
     await close();
-    const base = await trips(),
-      v = base[0].vehicleId,
-      d = base[0].driverId!;
-    const late = [
-      base[0],
-      { ...base[1], return: { driverId: d, start: 1450, end: 1490 } },
-      { ...base[2], start: 1490, end: 1520 },
-    ];
-    await draft(late);
-    const firstSnapshot = await service.current(actor),
-      firstService = new OperationService(store, {
-        now: () => new Date(`${firstDate}T20:00:00Z`),
-      });
-    date = `2026-11-${String(++day).padStart(2, '0')}`;
-    const existing = await source.query<unknown[]>(
-      'SELECT 1 FROM app.operation_plans WHERE date=$1',
-      [date],
+    const values = await trips();
+    // The new public payload has no operational clock fields.
+    const daily = values.map((t) =>
+      t.kind === 'local'
+        ? {
+            kind: t.kind,
+            vehicleId: t.vehicleId,
+            driverId: t.driverId,
+            groupId: t.groupId,
+            stage: t.stage,
+          }
+        : {
+            kind: t.kind,
+            vehicleId: t.vehicleId,
+            universityId: t.universityId,
+            outbound: { driverId: t.outbound!.driverId },
+            return: { driverId: t.return!.driverId },
+          },
     );
-    if (existing.length) throw new Error('Existing plan preserved');
+    await draft(daily);
+    const firstSnapshot = await service.current(actor);
+    const firstService = new OperationService(store, {
+      now: () => new Date(`${firstDate}T20:00:00Z`),
+    });
+    date = `2026-11-${String(++day).padStart(2, '0')}`;
     dates.push(date);
     instant = `${date}T19:00:00Z`;
     await answer(id);
     await close();
-    const early = [
-      { ...base[0], start: 10, end: 30 },
-      {
-        ...base[1],
-        outbound: { driverId: d, start: 30, end: 80 },
-        return: { driverId: d, start: 100, end: 130 },
-      },
-      { ...base[2], start: 130, end: 160 },
-    ];
-    await draft(early);
-    const s = await service.current(actor),
-      results = await Promise.allSettled([
-        firstService.confirm(actor, {
-          expectedVersion: firstSnapshot.version,
-          demandToken: firstSnapshot.demandToken,
-        }),
-        second.confirm(actor, {
-          expectedVersion: s.version,
-          demandToken: s.demandToken,
-        }),
-      ]);
-    expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
-    expect(
-      (results.find((r) => r.status === 'rejected') as PromiseRejectedResult)
-        .reason,
-    ).toMatchObject({ code: 'PLANNING_REQUIRES_ADJUSTMENT' });
-    const conflicts = await source.query<unknown[]>(
-      'SELECT a.id FROM app.operation_occupancies a JOIN app.operation_occupancies b ON a.id<b.id AND a.plan_date<>b.plan_date AND a.vehicle_id=b.vehicle_id AND a.starts_at<b.ends_at AND b.starts_at<a.ends_at WHERE a.active AND b.active AND a.vehicle_id=$1',
-      [v],
-    );
-    expect(conflicts).toHaveLength(0);
-    // Replace the second day's proposal by a later non-overlapping cycle.
-    await draft(base);
-    await confirm();
-    const firstNow = await firstService.current(actor);
-    await firstService.confirm(actor, {
-      expectedVersion: firstNow.version,
-      demandToken: firstNow.demandToken,
-    });
-    expect((await firstService.current(actor)).status).toBe('confirmed');
+    await draft(daily);
+    const snapshot = await service.current(actor);
+    const results = await Promise.allSettled([
+      firstService.confirm(actor, {
+        expectedVersion: firstSnapshot.version,
+        demandToken: firstSnapshot.demandToken,
+      }),
+      second.confirm(actor, {
+        expectedVersion: snapshot.version,
+        demandToken: snapshot.demandToken,
+      }),
+    ]);
+    expect(results.map((r) => r.status)).toEqual(['fulfilled', 'fulfilled']);
     expect((await service.current(actor)).status).toBe('confirmed');
+    expect((await firstService.current(actor)).status).toBe('confirmed');
     expect(
       (
-        await service.options(actor, {
-          universityId: 'unimater',
-          start: 30,
-          end: 80,
-        })
-      ).available.map((x) => x.id),
-    ).not.toContain(v);
-    const freshVehicle = await vehicle();
-    await draft(early.map((t) => ({ ...t, vehicleId: freshVehicle })));
-    const occupiedDriver = await service.current(actor);
-    expect(occupiedDriver.planningIssues).toContain('DRIVER_OCCUPIED');
-    expect(occupiedDriver.planningIssues).not.toContain('VEHICLE_OCCUPIED');
-    await expect(confirm()).rejects.toMatchObject({
-      code: 'PLANNING_REQUIRES_ADJUSTMENT',
-    });
+        await service.options(actor, { universityId: 'unimater' })
+      ).available.map((v) => v.id),
+    ).toContain(values[0].vehicleId);
+    expect(
+      (await service.options(actor, { universityId: 'unidep' })).available.map(
+        (v) => v.id,
+      ),
+    ).not.toContain(values[0].vehicleId);
   });
 });

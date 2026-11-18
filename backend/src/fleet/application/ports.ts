@@ -1,4 +1,3 @@
-import type { Window } from '../domain/fleet';
 export interface Vehicle {
   id: string;
   identifier: string;
@@ -7,7 +6,7 @@ export interface Vehicle {
   seats: number;
   active: boolean;
   version: number;
-  week: Window[][] | null;
+  week: boolean[] | null;
 }
 export interface Driver {
   id: string;
@@ -21,11 +20,11 @@ export interface FleetTransaction {
     id: string,
     from: string,
     to: string,
-  ): Promise<{ date: string; windows: Window[] }[]>;
+  ): Promise<{ date: string; available: boolean }[]>;
   saveException(
     id: string,
     date: string,
-    windows: Window[] | null,
+    available: boolean | null,
   ): Promise<void>;
   vehicles(limit: number, offset: number): Promise<Vehicle[]>;
   drivers(limit: number, offset: number): Promise<Driver[]>;

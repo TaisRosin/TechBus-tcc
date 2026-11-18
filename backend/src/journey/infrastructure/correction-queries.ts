@@ -23,6 +23,12 @@ export function correctionQueries(m: EntityManager): CorrectionTransaction {
     },
     async insert(v) {
       await m.query(
+        `UPDATE app.conversation_clarifications c SET state='superseded',code='RESOLVED_BY_TEAM'
+        WHERE c.student_id=$1 AND c.date=$2::date AND c.state IN ('prepared','sent','escalated')
+        AND EXISTS(SELECT 1 FROM app.journey_receipts r WHERE r.id=c.event_id AND r.student_id=c.student_id AND r.result->>'code'='RESOLVED_BY_TEAM')`,
+        [v.studentId, v.date],
+      );
+      await m.query(
         'INSERT INTO app.team_corrections(student_id,operation_id,date,actor_id,request_hash,reason,created_at,result) VALUES($1,$2,$3,$4,$5,$6,$7,$8)',
         [
           v.studentId,

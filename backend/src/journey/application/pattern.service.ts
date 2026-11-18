@@ -1,3 +1,4 @@
+import { returnItem } from '../../registry/application/return-item';
 import { createHash } from 'node:crypto';
 import { AccessError } from '../../access/domain/access';
 import {
@@ -189,7 +190,7 @@ export class PatternService {
       side === 'pickup'
         ? await tx.places.get('point', id)
         : location
-          ? await tx.places.get('region', location.regionId)
+          ? await returnItem(tx.places, location)
           : null;
     if (!item?.active || !item.groupId) return false;
     const group = await tx.places.get('group', item.groupId);

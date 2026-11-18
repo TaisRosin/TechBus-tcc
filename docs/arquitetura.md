@@ -1,5 +1,18 @@
 # Arquitetura do backend — proposta
 
+> **Consolidação para apresentação — 17/11/2026:** consulte o [guia completo](guia-apresentacao-andamento.md) e o [inventário técnico](inventario-tecnico-andamento.md). Backend e painel locais, contexto de conversa, agendador, pontos fixos, disponibilidade diária e prévia Google Maps estão implementados. Ensaio WhatsApp de 09/11 foi parcial; cadeia completa, hospedagem e avaliação acadêmica permanecem pendentes. Ordem de paradas continua manual; quarta utilização está fora da entrega. Trechos antigos abaixo que divergem desse estado são históricos; as evidências de cada incremento delimitam o que foi validado.
+
+11/11/2026 — Endereços dos pontos: cadastro próprio estruturado (logradouro/localização, número textual ou sem número, bairro, cidade, UF, Brasil, CEP e complemento) e referência da parada separada, exibida no itinerário/motorista. Bairro, CEP e complemento opcionais. Texto antigo preservado, detalhamento somente explícito; UUIDs, grupos, padrões e ordem manual mantidos. Validação estrutural não comprova endereço real. Maps/geocodificação/rotas continuam futuros. Implementação: specs/025-enderecos-pontos/.
+
+
+Pesquisa técnica de 11/11/2026: [preparação dos pontos para Google Maps](preparacao-maps.md). Proposta de evolução futura; cadastro estruturado e vínculo ao fornecedor ainda não implementados, sem mudança no escopo manual vigente.
+
+## Itinerário diário — 11/11/2026
+
+Decisão de Taís em 11/11/2026: itinerário com três abas (Ida, Volta e Intermunicipal), prévia e escolha de veículo integradas, painéis por grupo e filtro. Planejamento deixa de ser página separada. Recomendação somente intermunicipal, menor disponível para max(ida, volta), com escolha manual permitida. Disponibilidade semanal por dia (sim/não), exceção por data prevalece. Coleta, intermunicipal e desembarque são etapas sequenciais sem horários. Mesmo veículo pode atender as três etapas, limitado a um grupo por etapa e uma universidade no intermunicipal. Motorista também não pode ter duas atribuições no mesmo trecho da mesma etapa. Consulta somente da data atual em America/Sao_Paulo: ao virar o dia, outra operação; registros técnicos preservados. Prazos 17h/22h e mensagens 05h/11h/13h/16h não mudam.
+
+Esta decisão substitui as faixas horárias B11 e a consulta da operação anterior B15. Implementação e validação em [024](../specs/024-itinerario-diario/plan.md). Disponibilidades antigas devem ser cadastradas novamente por dia; faixas antigas permanecem guardadas, sem conversão automática em disponibilidade integral.
+
 ## Interpretação B18.3
 
 InterpretationService usa o WhatsAppStore e eventos duráveis existentes. Reserva tentativa transacional antes de regra/Gemini, executa fornecedor fora de locks e revalida autorização/conflito/aluno na conclusão. Gemini recebe somente texto e instrução fixa, sem ferramentas/telefone/cadastro; validação estrita da proposta no backend. Serviço não chama aplicação de jornada nem promove ordering. Endpoint administrativo explícito, sem worker/cron/autoenvio. [Plano](../specs/019-interpretacao-mensagens/plan.md).

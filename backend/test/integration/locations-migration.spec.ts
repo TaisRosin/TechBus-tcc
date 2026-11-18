@@ -75,7 +75,7 @@ describe('Places migration and database invariants in test only', () => {
       [user],
     );
     expect(permissions).toEqual([
-      { remove: false, ddl: false, rewrite: false, write: true },
+      { remove: false, ddl: false, rewrite: true, write: true },
     ]);
   });
 });

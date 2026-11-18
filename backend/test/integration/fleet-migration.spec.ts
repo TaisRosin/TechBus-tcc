@@ -12,6 +12,24 @@ describe('Fleet database boundaries', () => {
   afterAll(async () => {
     if (source?.isInitialized) await source.destroy();
   });
+  it('accepts only seven explicit daily booleans or unconfigured availability', async () => {
+    expect(
+      await source.query(`SELECT
+      app.valid_daily_week('[false,true,true,true,true,true,false]'::jsonb) AS valid,
+      app.valid_daily_week(NULL) AS unconfigured,
+      app.valid_daily_week('[true,false]'::jsonb) AS incomplete,
+      app.valid_daily_week('[true,true,true,true,true,true,1]'::jsonb) AS coerced,
+      app.valid_daily_week('[[],[],[],[],[],[],[]]'::jsonb) AS legacy`),
+    ).toEqual([
+      {
+        valid: true,
+        unconfigured: true,
+        incomplete: false,
+        coerced: false,
+        legacy: false,
+      },
+    ]);
+  });
   it('validates availability structure in PostgreSQL and preserves restricted app privileges', async () => {
     expect(
       await source.query(

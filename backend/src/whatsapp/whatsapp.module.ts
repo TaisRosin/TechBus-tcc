@@ -11,6 +11,7 @@ import { InterpretationController } from '../interpretation/controller';
 import { InterpretationApplication } from '../interpretation/application';
 import { ConversationProcessor } from '../interpretation/processor';
 import { AcknowledgementDispatcher } from './acknowledgement-dispatcher';
+import { ClarificationDispatcher } from './clarification-dispatcher';
 @Module({})
 export class WhatsAppModule {
   static register(
@@ -22,6 +23,12 @@ export class WhatsAppModule {
       module: WhatsAppModule,
       controllers: [WhatsAppController, InterpretationController],
       providers: [
+        {
+          provide: ClarificationDispatcher,
+          useFactory: (store: WhatsAppStore) =>
+            new ClarificationDispatcher(store, new SystemClock(), config),
+          inject: [WhatsAppStore],
+        },
         {
           provide: AcknowledgementDispatcher,
           useFactory: (store: WhatsAppStore) =>

@@ -96,12 +96,15 @@ describe('Fleet HTTP authorization and contracts', () => {
     await request(server)
       .put(`/api/v1/vehicles/${v.id}/availability`)
       .set('Authorization', auth)
-      .send({ week: [[], [], [], [], [], [], []], expectedVersion: 1 })
+      .send({
+        week: [false, false, false, false, false, false, false],
+        expectedVersion: 1,
+      })
       .expect(200);
     await request(server)
       .put(`/api/v1/vehicles/${v.id}/availability/exceptions/2026-10-25`)
       .set('Authorization', auth)
-      .send({ windows: [], expectedVersion: 2 })
+      .send({ available: false, expectedVersion: 2 })
       .expect(200);
     await request(server)
       .get(
@@ -109,7 +112,7 @@ describe('Fleet HTTP authorization and contracts', () => {
       )
       .set('Authorization', auth)
       .expect(200)
-      .expect([{ date: '2026-10-25', windows: [] }]);
+      .expect([{ date: '2026-10-25', available: false }]);
     const dres = await request(server)
       .post('/api/v1/drivers')
       .set('Authorization', auth)

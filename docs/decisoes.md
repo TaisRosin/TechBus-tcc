@@ -1,5 +1,39 @@
 # Decisões, referências e pendências
 
+18/11/2026 — Rotas por grupo: na prévia Maps, origem é o primeiro ponto e destino é o último da ordem padrão do grupo, mesmo sem passageiros nesses extremos. No modo do dia, somente os intermediários são filtrados por passageiros confirmados. Sem extremos avulsos ou duplicação; pontos indisponíveis exigem revisão. Trecho direto/intermunicipal mantém origem e destino informados. Esta decisão substitui os extremos livres da prévia por grupo de 12/11. Evidências em specs/026-mapas-rotas/verification.md.
+
+> **Consolidação para apresentação — 17/11/2026:** consulte o [guia completo](guia-apresentacao-andamento.md) e o [inventário técnico](inventario-tecnico-andamento.md). Backend e painel locais, contexto de conversa, agendador, pontos fixos, disponibilidade diária e prévia Google Maps estão implementados. Ensaio WhatsApp de 09/11 foi parcial; cadeia completa, hospedagem e avaliação acadêmica permanecem pendentes. Ordem de paradas continua manual; quarta utilização está fora da entrega. Trechos antigos abaixo que divergem desse estado são históricos; as evidências de cada incremento delimitam o que foi validado.
+
+12/11/2026 — Integração Maps implementada e verificada em specs/026-mapas-rotas/verification.md. Mapa administrativo e prévia de percurso com Geocoding, Routes e Maps JavaScript, ordem manual, origem/destino explícitos, distância/duração estimada. Escolhas geográficas e respostas Google somente na sessão da tela. Avisos de chegada aos alunos são proposta posterior. Este incremento supera a indicação de Maps inteiramente futuro nos registros anteriores.
+
+11/11/2026 — Endereços dos pontos: cadastro próprio estruturado (logradouro/localização, número textual ou sem número, bairro, cidade, UF, Brasil, CEP e complemento) e referência da parada separada, exibida no itinerário/motorista. Bairro, CEP e complemento opcionais. Texto antigo preservado, detalhamento somente explícito; UUIDs, grupos, padrões e ordem manual mantidos. Validação estrutural não comprova endereço real. Maps/geocodificação/rotas continuam futuros. Implementação: specs/025-enderecos-pontos/.
+
+
+## 11/11/2026 — Pesquisa de preparação dos endereços para Maps
+
+Taís solicitou avaliar o cadastro de endereços para eventual integração futura com Google Maps. Código atual e documentação oficial consultados; proposta em [preparação dos pontos](preparacao-maps.md). Separar endereço próprio, referência ao motorista e localização conferida. Registro de pesquisa, não decisão de ativar Maps, validação automática ou otimização; alteração de cadastro ainda não implementada. Pontos fixos, grupos e ordem manual preservados.
+
+## 11/11/2026 — Itinerário integrado e operação por dia
+
+Decisão de Taís em 11/11/2026: itinerário com três abas (Ida, Volta e Intermunicipal), prévia e escolha de veículo integradas, painéis por grupo e filtro. Planejamento deixa de ser página separada. Recomendação somente intermunicipal, menor disponível para max(ida, volta), com escolha manual permitida. Disponibilidade semanal por dia (sim/não), exceção por data prevalece. Coleta, intermunicipal e desembarque são etapas sequenciais sem horários. Mesmo veículo pode atender as três etapas, limitado a um grupo por etapa e uma universidade no intermunicipal. Motorista também não pode ter duas atribuições no mesmo trecho da mesma etapa. Consulta somente da data atual em America/Sao_Paulo: ao virar o dia, outra operação; registros técnicos preservados. Prazos 17h/22h e mensagens 05h/11h/13h/16h não mudam.
+
+Confirmado explicitamente por Taís: reuso entre etapas e limite de um grupo/universidade na mesma etapa; viagem consultável somente até acabar o dia. Sem criar encerramento manual, janela noturna adicional ou histórico de consultas. [Plano e validação](../specs/024-itinerario-diario/plan.md).
+
+## Esclarecimento aprovado — 05/11/2026
+
+Taís aprovou uma pergunta objetiva para a ambiguidade e, se a resposta continuar insuficiente, pendência para a equipe, sem repetir perguntas automaticamente. Resposta deve chegar antes das 17h; depois disso, só cancelamento de volta permitido. Vínculo por resposta citada verificada, nunca apenas pela última pergunta enviada. O pedido inteiro é validado; não descartar alteração de local/padrão para confirmar parcialmente. [Contrato e limites](../specs/020-contexto-conversa/contracts/context.md).
+
+## Decisão vigente — desembarque em pontos fixos (04/11/2026)
+
+Taís definiu pontos de desembarque fixos cadastrados pela empresa, como os pontos de embarque. A equipe cadastra nome, endereço descritivo e vínculo ao grupo de distribuição; o aluno utiliza um ponto cadastrado e ativo. Mudanças diárias continuam sujeitas aos prazos e não alteram automaticamente o padrão. Locais desconhecidos exigem tratamento pela equipe, sem criar endereço ou ponto automaticamente. Ordem de paradas permanece manual.
+
+Mapas, geocodificação e validação automática de área deixam de ser dependências desta entrega; eventual integração será reavaliada depois. Esta decisão substitui o fluxo anterior de endereço livre validado por fornecedor, sem transformar endereços antigos em pontos aprovados automaticamente. Preservar registros existentes e resolver vínculos explicitamente. **Decisão registrada; adaptação do backend e do painel ainda pendente.** Próxima implementação deve cobrir cadastro/seleção, padrões, jornada, recibos, planejamento e itinerário, com testes de inativação, prazos e referências.
+
+
+## Decisão vigente — entrega antecipada (04/11/2026)
+
+Taís retirou o cálculo automático de rotas e a sugestão automática de mudança de padrão pela quarta utilização desta entrega. Usar itinerário manual B16; preservar mudança explícita/consentida de padrão e os registros existentes. Entrega de sistema e texto prevista para a semana de 16/11; texto fica com Taís. Autorizado antecipar frontend e testar/ajustar incrementalmente com backend existente, sem esperar todas as etapas B18. Próxima execução em [painel antecipado](../specs/021-painel-operacional/tasks.md). Contexto/agendador e ensaio WhatsApp continuam pendentes e não devem ser declarados concluídos. Regras de prazo, autorização, capacidade, idempotência e geografia permanecem obrigatórias.
+
 ## Continuidade — 04/11/2026
 
 Taís decidiu adiar a análise dos testes manuais de WhatsApp, solicitou próximas tarefas usando Spec Kit, autorizou excluir backend/scripts/manual-whatsapp.cjs e preparar o commit para push posterior por ela. B18.4 planejado em [16 tarefas](../specs/020-contexto-conversa/tasks.md), sem implementação iniciada. Casos manuais e B18.3/T019 continuam pendentes; não declarar falhas corrigidas. [Estado consolidado](estado-atual.md) distingue configuração privada atual dos registros históricos. Nenhuma regra de ida/volta, prazo ou geografia foi alterada nesta preparação.

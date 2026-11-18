@@ -1,3 +1,4 @@
+import { returnItem } from '../../registry/application/return-item';
 import { createHash } from 'node:crypto';
 import { AccessError } from '../../access/domain/access';
 import {
@@ -6,12 +7,7 @@ import {
 } from '../../registry/application/ports';
 import { exact, invalid, revision } from '../../registry/domain/registry';
 import { evaluateEligibility } from '../../registry/domain/calendar';
-import {
-  covers,
-  interval,
-  parseProposal,
-  type ProposedTrip,
-} from '../../fleet/domain/fleet';
+import { parseProposal, type ProposedTrip } from '../../fleet/domain/fleet';
 import { FleetService } from '../../fleet/application/fleet.service';
 import { closingDue } from '../../journey/domain/closing';
 import type { Plan, Occupancy } from './ports';
@@ -21,7 +17,6 @@ import { operationalDate } from '../../shared/time/operational-date';
 import {
   demand,
   recommend,
-  localInstant,
   coverageIssues,
   type Requirement,
 } from '../domain/operation';
@@ -114,7 +109,7 @@ export class OperationService {
             side === 'pickup' && journey.pointId
               ? await tx.places.get('point', journey.pointId)
               : location
-                ? await tx.places.get('region', location.regionId)
+                ? await returnItem(tx.places, location)
                 : null;
           const group = item?.groupId
             ? await tx.places.get('group', item.groupId)
@@ -232,19 +227,14 @@ export class OperationService {
       };
     });
   }
-  private occupancies(date: string, trips: ProposedTrip[]): Occupancy[] {
+  private occupancies(trips: ProposedTrip[]): Occupancy[] {
     return trips.flatMap((t) => [
-      {
-        vehicleId: t.vehicleId,
-        driverId: null,
-        start: localInstant(date, t.start),
-        end: localInstant(date, t.end),
-      },
-      ...t.legs.map((l) => ({
+      { vehicleId: t.vehicleId, driverId: null, stage: t.stage, side: 'cycle' },
+      ...t.legs.map((l, i) => ({
         vehicleId: null,
         driverId: l.driverId,
-        start: localInstant(date, l.start),
-        end: localInstant(date, l.end),
+        stage: t.stage,
+        side: i === 0 ? 'outbound' : 'return',
       })),
     ]);
   }
@@ -268,9 +258,6 @@ export class OperationService {
       ...fleet.issues.map((i) => i.code),
       ...coverageIssues(required, trips, capacities),
     ];
-    for (const value of this.occupancies(date, trips))
-      if (await tx.operations.conflicts(date, value))
-        issues.push(value.vehicleId ? 'VEHICLE_OCCUPIED' : 'DRIVER_OCCUPIED');
     return [...new Set(issues)];
   }
   async confirm(actor: string, input: unknown) {
@@ -323,17 +310,20 @@ export class OperationService {
       await tx.operations.replaceOccupancies(
         date,
         plan.version,
-        this.occupancies(date, plan.draft),
+        this.occupancies(plan.draft),
       );
       return { plan, version: plan.version, status: 'confirmed' };
     });
   }
   async options(actor: string, input: unknown) {
-    const v = exact(input, ['universityId', 'start', 'end']);
+    const timed = !!input && typeof input === 'object' && 'start' in input;
+    const v = exact(
+      input,
+      timed ? ['universityId', 'start', 'end'] : ['universityId'],
+    );
     if (!['unimater', 'unidep'].includes(v.universityId as string))
       return invalid();
     const universityId = v.universityId as string;
-    const { start, end } = interval(v.start, v.end);
     return this.run(actor, async (tx, date) => {
       const snapshot = await this.snapshot(tx, date),
         required = snapshot.universities.find(
@@ -349,27 +339,16 @@ export class OperationService {
             plan?.confirmedTrips?.some(
               (t) =>
                 t.vehicleId === v.id &&
-                t.universityId !== universityId &&
-                t.start < end &&
-                start < t.end,
+                t.stage === 'intermunicipal' &&
+                t.universityId !== universityId,
             )
           )
             continue;
           const exceptions = await tx.fleet.exceptions(v.id, date, date),
             windows =
-              exceptions[0]?.windows ??
+              exceptions[0]?.available ??
               v.week?.[new Date(`${date}T12:00:00Z`).getUTCDay()];
-          if (
-            windows &&
-            covers(windows, 'intermunicipal', start, end) &&
-            !(await tx.operations.conflicts(date, {
-              vehicleId: v.id,
-              driverId: null,
-              start: localInstant(date, start),
-              end: localInstant(date, end),
-            }))
-          )
-            available.push(v);
+          if (windows === true) available.push(v);
         }
         if (batch.length < 100) break;
       }

@@ -28,6 +28,7 @@ describe('Itinerary operation on isolated PostgreSQL', () => {
     provider = randomUUID(),
     students: string[] = [],
     regions: string[] = [],
+    fixedPoints: string[] = [],
     vehicles: string[] = [],
     drivers: string[] = [];
   const clock = { now: () => new Date(instant) };
@@ -71,6 +72,7 @@ describe('Itinerary operation on isolated PostgreSQL', () => {
           await places.create(admin, 'point', {
             name: 'B16 ponto',
             address: 'Sintético',
+            stopReference: 'Embarque pelo portão lateral',
             groupId: groups[i === 2 ? 1 : 0],
           })
         ).id,
@@ -122,9 +124,10 @@ describe('Itinerary operation on isolated PostgreSQL', () => {
         'DELETE FROM app.group_stop_orders WHERE group_id=ANY($1::uuid[])',
         [groups],
       );
-      await source.query('DELETE FROM app.return_locations WHERE provider=$1', [
-        provider,
-      ]);
+      await source.query(
+        'DELETE FROM app.return_locations WHERE provider=$1 OR id=ANY($2::uuid[])',
+        [provider, fixedPoints],
+      );
       await source.query(
         'DELETE FROM app.service_regions WHERE id=ANY($1::uuid[])',
         [regions],
@@ -210,17 +213,6 @@ describe('Itinerary operation on isolated PostgreSQL', () => {
       })
     ).id;
     regions.push(region);
-    const validated = new LocationService(store, {
-      validate: (address: string) =>
-        Promise.resolve({
-          status: 'inside',
-          provider,
-          key: address,
-          label: address,
-          regionId: region,
-          evidence: 'Simulado',
-        }),
-    });
     const journeys = new JourneyService(store, clock),
       registry = new RegistryService(store),
       stops: string[] = [];
@@ -233,8 +225,15 @@ describe('Itinerary operation on isolated PostgreSQL', () => {
         contract: { startDate: '2026-01-01', endDate: '2026-12-31' },
       });
       students.push(student.id);
-      const value = await validated.setDefault(admin, student.id, 'dropoff', {
+      const fixed = await places.create(admin, 'dropoff', {
+        name: `B16 ponto ${i}`,
         address: `B16 endereço ${i}`,
+        stopReference: 'Embarque pelo portão lateral',
+        groupId: group,
+      });
+      fixedPoints.push(fixed.id);
+      const value = await places.setDefault(admin, student.id, 'dropoff', {
+        locationId: fixed.id,
         source: 'initial',
         evidence: 'Teste',
         expectedVersion: 0,
@@ -258,13 +257,7 @@ describe('Itinerary operation on isolated PostgreSQL', () => {
     vehicles.push(vehicle.id);
     await fleet.setWeek(admin, vehicle.id, {
       expectedVersion: 1,
-      week: Array.from({ length: 7 }, () =>
-        ['intermunicipal', 'distribution'].map((stage) => ({
-          stage,
-          start: 0,
-          end: 2880,
-        })),
-      ),
+      week: Array(7).fill(true),
     });
     const operations = new OperationService(store, clock),
       consultations = new ConsultationService(store, clock, operations);
@@ -349,6 +342,10 @@ describe('Itinerary operation on isolated PostgreSQL', () => {
         (s) => s.id,
       ),
     ).toEqual(stops);
+    expect(
+      (await service.driverItinerary(driver, assigned.id)).ordered[0]
+        .stopReference,
+    ).toBe('Embarque pelo portão lateral');
     await expect(
       service.driverItinerary(operator, assigned.id),
     ).rejects.toMatchObject({ code: 'FORBIDDEN' });
@@ -446,9 +443,9 @@ describe('Itinerary operation on isolated PostgreSQL', () => {
       expectedVersion: link.version + 1,
     });
     instant = '2026-11-24T00:29:59-03:00';
-    expect(
-      (await service.driverItinerary(driver, current.id)).ordered,
-    ).toHaveLength(1);
+    await expect(
+      service.driverItinerary(driver, current.id),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' });
     instant = '2026-11-24T00:30:00-03:00';
     await expect(
       service.driverItinerary(driver, current.id),

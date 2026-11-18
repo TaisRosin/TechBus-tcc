@@ -9,7 +9,7 @@ import {
   parseProviderOrder,
   compareProviderOrder,
 } from '../whatsapp/provider-order';
-import { proposalCommand } from './command';
+import { fixedProposal, quotedContext } from './context-store';
 import { prepareAcknowledgement } from './acknowledgement-store';
 
 interface OrderedEvent {
@@ -59,14 +59,26 @@ export class InterpretationApplication {
       if (event.result && event.result.code !== 'ORDER_UNCERTAIN')
         return event.result;
       const [interpretation] = await m.query<
-        { state: string; proposal: unknown }[]
+        { state: string; proposal: unknown; context_event_id: string | null }[]
       >(
-        'SELECT state,proposal FROM app.message_interpretations WHERE event_id=$1',
+        'SELECT state,proposal,context_event_id FROM app.message_interpretations WHERE event_id=$1',
         [id],
       );
       if (interpretation?.state !== 'completed' || !interpretation.proposal)
         return pending('INTERPRETATION_PENDING');
-      const translated = proposalCommand(interpretation.proposal);
+      const context = interpretation.context_event_id
+        ? await quotedContext(m, id, this.clock.now())
+        : null;
+      if (
+        interpretation.context_event_id &&
+        (!context?.proposal ||
+          context.question.event_id !== interpretation.context_event_id)
+      )
+        return pending('CONTEXT_REVIEW_REQUIRED');
+      const translated = await fixedProposal(
+        m,
+        context?.proposal ?? interpretation.proposal,
+      );
       if (!translated.command) return pending(translated.code!);
       const evidence = parseProviderOrder(event.original_order);
       if (
@@ -93,6 +105,7 @@ export class InterpretationApplication {
           return pending('STALE_PROVIDER_MESSAGE');
         if (
           order === 'newer' &&
+          peer.id !== context?.question.event_id &&
           (!peer.result || peer.result.status === 'pending')
         )
           return pending('ORDER_PREDECESSOR_PENDING');
@@ -116,6 +129,16 @@ export class InterpretationApplication {
         )
           return pending('REVISION_REVIEW_REQUIRED');
       }
+      await m.query('SAVEPOINT context_application');
+      if (context)
+        await m.query(
+          'UPDATE app.journey_receipts SET result=$2::jsonb WHERE id=$1 AND student_id=$3',
+          [
+            context.question.event_id,
+            JSON.stringify({ status: 'rejected', code: 'CLARIFIED' }),
+            event.student_id,
+          ],
+        );
       await m.query(
         "UPDATE app.journey_receipts SET ordering='received',result=NULL WHERE id=$1 AND student_id=$2",
         [event.receipt_id, event.student_id],
@@ -130,12 +153,23 @@ export class InterpretationApplication {
         translated.command,
       );
       if (result.status === 'applied') {
+        if (context)
+          await m.query(
+            "UPDATE app.conversation_clarifications SET state='answered',answer_event_id=$2,code='ANSWER_APPLIED' WHERE event_id=$1",
+            [context.question.event_id, id],
+          );
         const journey = await tx.journeys.get(
           event.student_id,
           operationalDate(event.received_at),
         );
         if (!journey) throw new Error('APPLIED_JOURNEY_MISSING');
         await prepareAcknowledgement(m, tx, id, journey, this.clock.now());
+      } else if (context) {
+        await m.query('ROLLBACK TO SAVEPOINT context_application');
+        await m.query(
+          'UPDATE app.journey_receipts SET result=$2::jsonb WHERE id=$1 AND student_id=$3',
+          [id, JSON.stringify(result), event.student_id],
+        );
       }
       await m.query(
         'UPDATE app.message_interpretations SET code=$2 WHERE event_id=$1',

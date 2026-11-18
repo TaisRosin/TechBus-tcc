@@ -277,13 +277,7 @@ describe('B17 integrated backend acceptance', () => {
     vehicles.push(vehicle.id);
     await fleet.setWeek(actor, vehicle.id, {
       expectedVersion: 1,
-      week: Array.from({ length: 7 }, () =>
-        ['collection', 'intermunicipal', 'distribution'].map((stage) => ({
-          stage,
-          start: 0,
-          end: 2880,
-        })),
-      ),
+      week: Array(7).fill(true),
     });
     await consultations.link(actor, driverUser, {
       driverId: driver.id,

@@ -1,3 +1,6 @@
+import { MapsController } from '../maps/maps.controller';
+import { MapsService } from '../maps/maps.service';
+import { GoogleMaps } from '../maps/google-maps';
 import { Module, type DynamicModule } from '@nestjs/common';
 import { WhatsAppModule } from '../whatsapp/whatsapp.module';
 import type { EvolutionConfig } from '../whatsapp/config';
@@ -32,6 +35,7 @@ import { OperationController } from '../operation/http/operation.controller';
 import { CorrectionService } from '../journey/application/correction.service';
 import { CorrectionController } from '../journey/http/correction.controller';
 import { MessageService } from '../messaging/application/message.service';
+import { OperationalScheduler } from '../messaging/application/operational-scheduler';
 import {
   MessageSender,
   DisabledMessageSender,
@@ -44,6 +48,7 @@ import { ItineraryController } from '../itinerary/http/itinerary.controller';
 
 @Module({
   controllers: [
+    MapsController,
     ItineraryController,
     ConsultationController,
     MessageController,
@@ -62,11 +67,30 @@ export class RegistryModule {
     config: DatabaseConfig,
     evolution?: EvolutionConfig,
     gemini?: GeminiConfig,
+    schedulerEnabled = false,
+    mapsKey?: string,
   ): DynamicModule {
     return {
       module: RegistryModule,
       imports: [WhatsAppModule.register(config, evolution, gemini)],
       providers: [
+        {
+          provide: MapsService,
+          useFactory: (store: RegistryStore, itineraries: ItineraryService) =>
+            new MapsService(store, itineraries, new GoogleMaps(mapsKey)),
+          inject: [RegistryStore, ItineraryService],
+        },
+        {
+          provide: OperationalScheduler,
+          useFactory: (messages: MessageService) =>
+            new OperationalScheduler(
+              messages,
+              schedulerEnabled,
+              evolution?.sendEnabled ?? false,
+              evolution?.testPhones ?? [],
+            ),
+          inject: [MessageService],
+        },
         {
           provide: ItineraryService,
           useFactory: (

@@ -3,6 +3,7 @@ import { operationalDate } from '../shared/time/operational-date';
 import { WhatsAppStore } from '../whatsapp/store';
 import { InterpretationService } from './service';
 import { InterpretationApplication } from './application';
+import { prepareClarification } from './context-store';
 
 export class ConversationProcessor {
   private timer?: ReturnType<typeof setInterval>;
@@ -68,6 +69,8 @@ export class ConversationProcessor {
         /* Do not persist secrets or retry an uncertain external call. */
       }
       await this.store.transaction(async (m) => {
+        if (code !== 'APPLIED')
+          await prepareClarification(m, id, this.clock.now());
         await m.query(
           "UPDATE app.conversation_jobs SET state='completed',code=$2,finished_at=$3 WHERE event_id=$1",
           [id, code, this.clock.now()],

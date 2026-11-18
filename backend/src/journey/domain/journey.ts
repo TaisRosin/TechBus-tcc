@@ -29,6 +29,14 @@ export function emptyLegs(): Legs {
 export type Answer = 'yes' | 'no' | 'unsure';
 export type Command =
   | {
+      kind: 'request';
+      trip: 'going' | 'only_pickup' | 'only_dropoff' | 'answer' | 'none';
+      pickup?: Answer;
+      dropoff?: Answer;
+      pointId?: string;
+      locationId?: string;
+    }
+  | {
       kind:
         | 'going'
         | 'only_pickup'
@@ -74,6 +82,45 @@ export function parseCommand(input: unknown): Command {
     return invalid();
   const v = input as Record<string, unknown>;
   switch (v.kind) {
+    case 'request': {
+      const fields = ['pickup', 'dropoff', 'pointId', 'locationId'].filter(
+        (k) => Object.hasOwn(v, k),
+      );
+      exact(v, ['kind', 'trip', ...fields]);
+      if (
+        !['going', 'only_pickup', 'only_dropoff', 'answer', 'none'].includes(
+          v.trip as string,
+        )
+      )
+        return invalid();
+      const places = parseCommand({
+        kind: 'places',
+        ...(Object.hasOwn(v, 'pointId') ? { pointId: v.pointId } : {}),
+        ...(Object.hasOwn(v, 'locationId') ? { locationId: v.locationId } : {}),
+      });
+      if (places.kind !== 'places') return invalid();
+      if (v.trip !== 'none')
+        parseCommand({
+          kind: v.trip,
+          ...(Object.hasOwn(v, 'pickup') ? { pickup: v.pickup } : {}),
+          ...(Object.hasOwn(v, 'dropoff') ? { dropoff: v.dropoff } : {}),
+        });
+      else if (Object.hasOwn(v, 'pickup') || Object.hasOwn(v, 'dropoff'))
+        return invalid();
+      return {
+        kind: 'request',
+        trip: v.trip as
+          | 'going'
+          | 'only_pickup'
+          | 'only_dropoff'
+          | 'answer'
+          | 'none',
+        ...(v.pickup ? { pickup: v.pickup as Answer } : {}),
+        ...(v.dropoff ? { dropoff: v.dropoff as Answer } : {}),
+        ...(places.pointId ? { pointId: places.pointId } : {}),
+        ...(places.locationId ? { locationId: places.locationId } : {}),
+      };
+    }
     case 'going':
     case 'only_pickup':
     case 'only_dropoff':
@@ -131,6 +178,21 @@ const explicit = (answer: Answer): Leg => ({
   origin: 'aluno_explicito',
 });
 export function transition(previous: Legs, command: Command): Legs {
+  if (command.kind === 'request')
+    return command.trip === 'none'
+      ? transition(previous, {
+          kind: 'places',
+          pointId: command.pointId,
+          locationId: command.locationId,
+        })
+      : transition(
+          previous,
+          parseCommand({
+            kind: command.trip,
+            ...(command.pickup ? { pickup: command.pickup } : {}),
+            ...(command.dropoff ? { dropoff: command.dropoff } : {}),
+          }),
+        );
   const next = {
     pickup: { ...previous.pickup },
     dropoff: { ...previous.dropoff },

@@ -16,6 +16,8 @@ export class AppModule {
           config.database,
           config.evolution,
           config.gemini,
+          config.schedulerEnabled,
+          config.mapsKey,
         ),
       ],
     };

@@ -1,3 +1,5 @@
+import { AccessError } from '../../access/domain/access';
+import { exact } from '../domain/registry';
 import {
   Body,
   Controller,
@@ -68,11 +70,31 @@ export class LocationController {
   ) {
     return this.places.update(req.teamUser!.subject, 'point', id, body);
   }
+  @Get('dropoff-points') dropoffPoints(
+    @Req() req: AccessRequest,
+    @Query() q: unknown,
+  ) {
+    return this.places.list(req.teamUser!.subject, 'dropoff', q);
+  }
+  @Post('dropoff-points') createDropoff(
+    @Req() req: AccessRequest,
+    @Body() body: unknown,
+  ) {
+    return this.places.create(req.teamUser!.subject, 'dropoff', body);
+  }
+  @Patch('dropoff-points/:id') updateDropoff(
+    @Req() req: AccessRequest,
+    @Param('id') id: string,
+    @Body() body: unknown,
+  ) {
+    return this.places.update(req.teamUser!.subject, 'dropoff', id, body);
+  }
   @Post('return-locations/resolve') resolve(
     @Req() req: AccessRequest,
     @Body() body: unknown,
   ) {
-    return this.places.resolveReturn(req.teamUser!.subject, body);
+    exact(body, ['address']);
+    throw new AccessError('FIXED_DROPOFF_REQUIRED', 422);
   }
   @Get('students/:id/location-defaults') defaults(
     @Req() req: AccessRequest,
@@ -92,6 +114,7 @@ export class LocationController {
     @Param('id') id: string,
     @Body() body: unknown,
   ) {
+    exact(body, ['locationId', 'source', 'evidence', 'expectedVersion']);
     return this.places.setDefault(req.teamUser!.subject, id, 'dropoff', body);
   }
 }

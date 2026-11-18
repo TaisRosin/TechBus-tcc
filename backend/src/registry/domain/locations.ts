@@ -1,8 +1,14 @@
 import { AccessError } from '../../access/domain/access';
 import { exact, invalid, revision, uuid } from './registry';
+import {
+  parsePointAddress,
+  formatPointAddress,
+  parseStopReference,
+  type PointAddress,
+} from './point-address';
 
 export type Direction = 'pickup' | 'dropoff';
-export type CatalogKind = 'group' | 'region' | 'point';
+export type CatalogKind = 'group' | 'region' | 'point' | 'dropoff';
 export interface CatalogRecord {
   id: string;
   name: string;
@@ -11,8 +17,19 @@ export interface CatalogRecord {
   direction?: Direction;
   groupId?: string;
   address?: string;
+  addressDetails?: PointAddress | null;
+  stopReference?: string;
+  legacyAddress?: string | null;
 }
 export interface ReturnLocation {
+  groupId?: string;
+  name?: string;
+  address?: string;
+  addressDetails?: PointAddress | null;
+  stopReference?: string;
+  legacyAddress?: string | null;
+  active?: boolean;
+  version?: number;
   id: string;
   provider: string;
   externalKey: string;
@@ -39,10 +56,16 @@ export function direction(value: unknown): Direction {
   return value;
 }
 export function parseCatalog(kind: CatalogKind, input: unknown, edit: boolean) {
+  const point = kind === 'point' || kind === 'dropoff';
+  const structured =
+    point && !!input && typeof input === 'object' && 'addressDetails' in input;
+  const reference =
+    point && !!input && typeof input === 'object' && 'stopReference' in input;
   const keys = [
     'name',
     ...(kind === 'group' ? (edit ? [] : ['direction']) : ['groupId']),
-    ...(kind === 'point' ? ['address'] : []),
+    ...(point ? [structured ? 'addressDetails' : 'address'] : []),
+    ...(reference ? ['stopReference'] : []),
     ...(edit ? ['active', 'expectedVersion'] : []),
   ];
   const v = exact(input, keys);
@@ -51,12 +74,18 @@ export function parseCatalog(kind: CatalogKind, input: unknown, edit: boolean) {
     direction?: Direction;
     groupId?: string;
     address?: string;
+    addressDetails?: PointAddress;
+    stopReference?: string;
     active?: boolean;
     expectedVersion?: number;
   } = { name: textField(v.name, 200) };
   if (kind === 'group' && !edit) result.direction = direction(v.direction);
   if (kind !== 'group') result.groupId = uuid(textField(v.groupId, 36));
-  if (kind === 'point') result.address = textField(v.address);
+  if (structured) {
+    result.addressDetails = parsePointAddress(v.addressDetails);
+    result.address = formatPointAddress(result.addressDetails);
+  } else if (point) result.address = textField(v.address);
+  if (reference) result.stopReference = parseStopReference(v.stopReference);
   if (edit) {
     if (typeof v.active !== 'boolean') return invalid();
     result.active = v.active;
@@ -65,8 +94,13 @@ export function parseCatalog(kind: CatalogKind, input: unknown, edit: boolean) {
   return result;
 }
 export function parseDefault(side: Direction, input: unknown) {
+  const fixed =
+    side === 'dropoff' &&
+    !!input &&
+    typeof input === 'object' &&
+    'locationId' in input;
   const v = exact(input, [
-    side === 'pickup' ? 'pointId' : 'address',
+    side === 'pickup' ? 'pointId' : fixed ? 'locationId' : 'address',
     'source',
     'evidence',
     'expectedVersion',
@@ -77,7 +111,8 @@ export function parseDefault(side: Direction, input: unknown) {
     v.expectedVersion === 0 ? 0 : revision(v.expectedVersion);
   return {
     pointId: side === 'pickup' ? uuid(textField(v.pointId, 36)) : null,
-    address: side === 'dropoff' ? textField(v.address) : null,
+    locationId: fixed ? uuid(textField(v.locationId, 36)) : null,
+    address: side === 'dropoff' && !fixed ? textField(v.address) : null,
     source: v.source as PlaceDefault['source'],
     evidence: textField(v.evidence),
     expectedVersion,

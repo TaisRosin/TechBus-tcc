@@ -136,10 +136,84 @@ describe('Fleet on isolated PostgreSQL', () => {
       await runner.release();
     }
   });
+  it('configures availability by day without operational times', async () => {
+    const v = await vehicle();
+    const week = [false, true, true, true, true, true, false];
+    await service.setWeek(actor, v.id, { week, expectedVersion: 1 });
+    expect((await second.availability(actor, v.id)).week).toEqual(week);
+    await service.setException(actor, v.id, '2026-10-25', {
+      available: true,
+      expectedVersion: 2,
+    });
+    expect(
+      await second.exceptions(actor, v.id, {
+        from: '2026-10-25',
+        to: '2026-10-25',
+      }),
+    ).toEqual([{ date: '2026-10-25', available: true }]);
+  });
+  it('reuses a daily vehicle between stages but prevents two universities in one stage', async () => {
+    const v = await vehicle(),
+      d = await driver();
+    await service.setWeek(actor, v.id, {
+      week: Array(7).fill(true),
+      expectedVersion: 1,
+    });
+    const places = new LocationService(store, {
+      validate: () => Promise.reject(new Error('unused')),
+    });
+    const pickup = await places.create(actor, 'group', {
+      name: 'Ida diária',
+      direction: 'pickup',
+    });
+    const dropoff = await places.create(actor, 'group', {
+      name: 'Volta diária',
+      direction: 'dropoff',
+    });
+    groups.push(pickup.id, dropoff.id);
+    const intermunicipal = {
+      kind: 'intermunicipal',
+      vehicleId: v.id,
+      universityId: 'unimater',
+      outbound: { driverId: d.id },
+      return: { driverId: d.id },
+    };
+    const trips = [
+      {
+        kind: 'local',
+        stage: 'collection',
+        vehicleId: v.id,
+        driverId: d.id,
+        groupId: pickup.id,
+      },
+      intermunicipal,
+      {
+        kind: 'local',
+        stage: 'distribution',
+        vehicleId: v.id,
+        driverId: d.id,
+        groupId: dropoff.id,
+      },
+    ];
+    expect(
+      await service.evaluate(actor, { date: '2026-10-25', trips }),
+    ).toEqual({ eligible: true, issues: [] });
+    const duplicate = await service.evaluate(actor, {
+      date: '2026-10-25',
+      trips: [...trips, { ...intermunicipal, universityId: 'unidep' }],
+    });
+    expect(duplicate.issues).toContainEqual({
+      index: 3,
+      code: 'VEHICLE_STAGE_CONFLICT',
+    });
+    expect(duplicate.issues).toContainEqual({
+      index: 3,
+      code: 'DRIVER_STAGE_CONFLICT',
+    });
+  });
   it('uses weekly availability with date overrides, restoring inheritance and rejecting stale edits', async () => {
     const v = await vehicle(),
-      windows = [{ stage: 'intermunicipal', start: 1000, end: 1500 }],
-      week = Array.from({ length: 7 }, () => windows);
+      week = Array(7).fill(true);
     expect(await service.availability(actor, v.id)).toEqual({
       vehicleId: v.id,
       version: 1,
@@ -150,7 +224,7 @@ describe('Fleet on isolated PostgreSQL', () => {
     ).toMatchObject({ version: 2, week });
     expect(
       await second.setException(actor, v.id, '2026-10-25', {
-        windows: [],
+        available: false,
         expectedVersion: 2,
       }),
     ).toMatchObject({ version: 3 });
@@ -159,12 +233,12 @@ describe('Fleet on isolated PostgreSQL', () => {
         from: '2026-10-25',
         to: '2026-10-25',
       }),
-    ).toEqual([{ date: '2026-10-25', windows: [] }]);
+    ).toEqual([{ date: '2026-10-25', available: false }]);
     await expect(
       service.setWeek(actor, v.id, { week: null, expectedVersion: 2 }),
     ).rejects.toMatchObject({ code: 'VERSION_CONFLICT' });
     await service.setException(actor, v.id, '2026-10-25', {
-      windows: null,
+      available: null,
       expectedVersion: 3,
     });
     expect(
@@ -191,9 +265,7 @@ describe('Fleet on isolated PostgreSQL', () => {
       issues: [{ index: 0, code: 'AVAILABILITY_NOT_CONFIGURED' }],
     });
     await service.setWeek(actor, v.id, {
-      week: Array.from({ length: 7 }, () => [
-        { stage: 'intermunicipal', start: 1000, end: 1500 },
-      ]),
+      week: Array(7).fill(true),
       expectedVersion: 1,
     });
     expect(await service.evaluate(actor, input)).toEqual({
@@ -201,7 +273,7 @@ describe('Fleet on isolated PostgreSQL', () => {
       issues: [],
     });
     await service.setException(actor, v.id, input.date, {
-      windows: [],
+      available: false,
       expectedVersion: 2,
     });
     expect((await service.evaluate(actor, input)).issues).toContainEqual({
@@ -213,12 +285,12 @@ describe('Fleet on isolated PostgreSQL', () => {
         .eligible,
     ).toBe(true);
     await service.setException(actor, v.id, input.date, {
-      windows: [{ stage: 'intermunicipal', start: 1000, end: 1499 }],
+      available: false,
       expectedVersion: 3,
     });
     expect((await service.evaluate(actor, input)).eligible).toBe(false);
   });
-  it('holds the intermunicipal vehicle during the stay but permits later local reuse and different drivers', async () => {
+  it('ignores legacy clock overlap across sequential stages', async () => {
     const v = await vehicle(),
       a = await driver(),
       b = await driver();
@@ -231,10 +303,7 @@ describe('Fleet on isolated PostgreSQL', () => {
     });
     groups.push(group.id);
     await service.setWeek(actor, v.id, {
-      week: Array.from({ length: 7 }, () => [
-        { stage: 'intermunicipal', start: 1000, end: 1500 },
-        { stage: 'distribution', start: 1000, end: 1600 },
-      ]),
+      week: Array(7).fill(true),
       expectedVersion: 1,
     });
     const trip = {
@@ -266,7 +335,7 @@ describe('Fleet on isolated PostgreSQL', () => {
           trips: [trip, { ...local, start: 1200, end: 1250 }],
         })
       ).issues,
-    ).toContainEqual({ index: 1, code: 'VEHICLE_OVERLAP' });
+    ).toEqual([]);
     expect(
       (
         await service.evaluate(actor, {
@@ -274,7 +343,7 @@ describe('Fleet on isolated PostgreSQL', () => {
           trips: [trip, { ...local, start: 1450, end: 1550 }],
         })
       ).issues,
-    ).toContainEqual({ index: 1, code: 'DRIVER_OVERLAP' });
+    ).toEqual([]);
   });
   it('uses date availability without a week and rejects inactive or mismatched resources', async () => {
     const v = await vehicle(),
@@ -298,7 +367,7 @@ describe('Fleet on isolated PostgreSQL', () => {
       },
       input = { date: '2026-10-25', trips: [trip] };
     await service.setException(actor, v.id, input.date, {
-      windows: [{ stage: 'collection', start: 100, end: 200 }],
+      available: true,
       expectedVersion: 1,
     });
     expect((await service.evaluate(actor, input)).eligible).toBe(true);
@@ -343,11 +412,11 @@ describe('Fleet on isolated PostgreSQL', () => {
   });
   it('serializes concurrent schedule changes without losing an exception', async () => {
     const v = await vehicle(),
-      week = Array.from({ length: 7 }, () => []);
+      week = Array(7).fill(false);
     const results = await Promise.allSettled([
       service.setWeek(actor, v.id, { week, expectedVersion: 1 }),
       second.setException(actor, v.id, '2026-10-25', {
-        windows: [],
+        available: false,
         expectedVersion: 1,
       }),
     ]);
@@ -381,7 +450,7 @@ describe('Fleet on isolated PostgreSQL', () => {
     const broken = new FleetService(new BrokenStore());
     await expect(
       broken.setException(actor, v.id, '2026-10-25', {
-        windows: [],
+        available: false,
         expectedVersion: 1,
       }),
     ).rejects.toMatchObject({ code: 'REGISTRY_UNAVAILABLE' });
@@ -393,7 +462,7 @@ describe('Fleet on isolated PostgreSQL', () => {
     ).toEqual([]);
     expect((await second.availability(actor, v.id)).version).toBe(1);
     await second.setException(actor, v.id, '2026-10-25', {
-      windows: [],
+      available: false,
       expectedVersion: 1,
     });
     expect((await service.availability(actor, v.id)).version).toBe(2);

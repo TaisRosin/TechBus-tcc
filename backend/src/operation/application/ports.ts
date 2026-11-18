@@ -1,4 +1,4 @@
-import type { ProposedTrip } from '../../fleet/domain/fleet';
+import type { ProposedTrip, Stage } from '../../fleet/domain/fleet';
 export interface Plan {
   date: string;
   version: number;
@@ -14,8 +14,8 @@ export interface Plan {
 export interface Occupancy {
   vehicleId: string | null;
   driverId: string | null;
-  start: Date;
-  end: Date;
+  stage: Stage;
+  side: string;
 }
 export interface OperationTransaction {
   plan(date: string): Promise<Plan | null>;
@@ -25,6 +25,5 @@ export interface OperationTransaction {
     version: number,
     values: Occupancy[],
   ): Promise<void>;
-  conflicts(date: string, value: Occupancy): Promise<boolean>;
   actorId(subject: string): Promise<string>;
 }

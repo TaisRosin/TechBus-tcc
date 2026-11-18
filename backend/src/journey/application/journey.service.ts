@@ -1,3 +1,4 @@
+import { returnItem } from '../../registry/application/return-item';
 import { AccessError } from '../../access/domain/access';
 import {
   RegistryStore,
@@ -132,7 +133,7 @@ export class JourneyService {
           next[side].state === 'confirmado' &&
           previous?.[side].state !== 'confirmado',
       );
-      if (adding || command.kind === 'places') {
+      if (adding || command.kind === 'places' || command.kind === 'request') {
         const calendar = await tx.calendar(student.universityId, 'read');
         const exceptions = await tx.exceptions(
           student.universityId,
@@ -194,7 +195,7 @@ export class JourneyService {
         closureBaseState: null,
         cancelSequence: previous?.cancelSequence ?? null,
       };
-      if (command.kind === 'places') {
+      if (command.kind === 'places' || command.kind === 'request') {
         if (
           command.pointId &&
           !(await this.validPlace(tx, 'pickup', command.pointId))
@@ -447,7 +448,7 @@ export class JourneyService {
       side === 'pickup'
         ? await tx.places.get('point', id)
         : location
-          ? await tx.places.get('region', location.regionId)
+          ? await returnItem(tx.places, location)
           : null;
     if (!item?.active || !item.groupId) return false;
     const group = await tx.places.get('group', item.groupId);

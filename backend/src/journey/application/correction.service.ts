@@ -1,3 +1,4 @@
+import { returnItem } from '../../registry/application/return-item';
 import { createHash } from 'node:crypto';
 import { AccessError } from '../../access/domain/access';
 import {
@@ -45,7 +46,7 @@ export class CorrectionService {
       side === 'pickup'
         ? await tx.places.get('point', id)
         : location
-          ? await tx.places.get('region', location.regionId)
+          ? await returnItem(tx.places, location)
           : null;
     const group = item?.groupId
       ? await tx.places.get('group', item.groupId)

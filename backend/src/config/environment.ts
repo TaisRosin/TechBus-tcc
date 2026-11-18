@@ -13,11 +13,19 @@ export interface DatabaseConfig {
   password: string;
 }
 export interface Environment {
+  mapsKey?: string;
+  schedulerEnabled?: boolean;
   evolution?: EvolutionConfig;
   gemini?: GeminiConfig;
   mode: 'development' | 'test';
   port: number;
   database: DatabaseConfig;
+}
+export function readSchedulerEnabled(raw: NodeJS.ProcessEnv): boolean {
+  const value = raw.OPERATIONS_SCHEDULER_ENABLED;
+  if (value !== undefined && value !== 'true' && value !== 'false')
+    throw new ConfigurationError('OPERATIONS_SCHEDULER_ENABLED');
+  return value === 'true';
 }
 export function readEnvironment(raw: NodeJS.ProcessEnv): Environment {
   const invalid = (field: string): never => {
@@ -43,6 +51,10 @@ export function readEnvironment(raw: NodeJS.ProcessEnv): Environment {
   const evolution = readEvolutionConfig(raw);
   const gemini = readGeminiConfig(raw);
   return {
+    schedulerEnabled: readSchedulerEnabled(raw),
+    ...(raw.GOOGLE_MAPS_API_KEY?.trim()
+      ? { mapsKey: raw.GOOGLE_MAPS_API_KEY.trim() }
+      : {}),
     ...(evolution ? { evolution } : {}),
     ...(gemini ? { gemini } : {}),
     mode: mode as Environment['mode'],

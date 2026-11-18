@@ -1,3 +1,4 @@
+import { returnItem } from '../registry/application/return-item';
 import type { EntityManager } from 'typeorm';
 import type { RegistryTransaction } from '../registry/application/ports';
 import type { Journey } from '../journey/domain/journey';
@@ -23,9 +24,7 @@ export async function acknowledgementSnapshot(
     const location = journey.locationId
       ? await tx.places.location(journey.locationId)
       : null;
-    const region = location
-      ? await tx.places.get('region', location.regionId)
-      : null;
+    const region = location ? await returnItem(tx.places, location) : null;
     const group = region?.groupId
       ? await tx.places.get('group', region.groupId)
       : null;

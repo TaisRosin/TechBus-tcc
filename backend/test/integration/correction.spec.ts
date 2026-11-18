@@ -416,13 +416,7 @@ describe('Team corrections in isolated PostgreSQL', () => {
     vehicles.push(v.id);
     await fleet.setWeek(actor, v.id, {
       expectedVersion: 1,
-      week: Array.from({ length: 7 }, () =>
-        ['collection', 'intermunicipal', 'distribution'].map((stage) => ({
-          stage,
-          start: 0,
-          end: 2880,
-        })),
-      ),
+      week: Array(7).fill(true),
     });
     const d = await fleet.createDriver(actor, {
       name: 'B13 motorista',

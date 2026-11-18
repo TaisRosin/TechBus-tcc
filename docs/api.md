@@ -1,5 +1,27 @@
 # API do backend — contrato proposto
 
+> **Consolidação para apresentação — 17/11/2026:** consulte o [guia completo](guia-apresentacao-andamento.md) e o [inventário técnico](inventario-tecnico-andamento.md). Backend e painel locais, contexto de conversa, agendador, pontos fixos, disponibilidade diária e prévia Google Maps estão implementados. Ensaio WhatsApp de 09/11 foi parcial; cadeia completa, hospedagem e avaliação acadêmica permanecem pendentes. Ordem de paradas continua manual; quarta utilização está fora da entrega. Trechos antigos abaixo que divergem desse estado são históricos; as evidências de cada incremento delimitam o que foi validado.
+
+11/11/2026 — Endereços dos pontos: cadastro próprio estruturado (logradouro/localização, número textual ou sem número, bairro, cidade, UF, Brasil, CEP e complemento) e referência da parada separada, exibida no itinerário/motorista. Bairro, CEP e complemento opcionais. Texto antigo preservado, detalhamento somente explícito; UUIDs, grupos, padrões e ordem manual mantidos. Validação estrutural não comprova endereço real. Maps/geocodificação/rotas continuam futuros. Implementação: specs/025-enderecos-pontos/.
+
+POST/PATCH /boarding-points e /dropoff-points aceitam address OU addressDetails, nunca ambos. addressDetails exige street, number, noNumber, neighborhood, city, state, country=BR, postalCode e complement (opcionais como string vazia). Número obrigatório exceto noNumber=true, quando deve ser vazio; UF brasileira; CEP vazio ou 8 dígitos, hífen de entrada aceito. stopReference opcional até 1000; omitido preserva o anterior no PATCH, vazio limpa. Resposta inclui address formatado, addressDetails/null, stopReference e legacyAddress/null. Cliente antigo com address inalterado preserva detalhes; endereço textual alterado limpa detalhes obsoletos. expectedVersion/autorização permanecem.
+
+## Contratos diários vigentes — 11/11/2026
+
+- GET/PUT `/vehicles/:id/availability`: `week` é vetor de sete booleanos (domingo a sábado), ou null; PUT exige `expectedVersion`.
+- GET `/vehicles/:id/availability/exceptions?from=...&to=...`: registros `{date, available}`; PUT `/vehicles/:id/availability/exceptions/:date` recebe `{available: true|false|null, expectedVersion}`. Null restaura a semana.
+- POST `/operations/current/vehicle-options` recebe `{universityId}`. Retorna demanda, opções suficientes e menores equivalentes, usando disponibilidade do dia e exclusividade intermunicipal.
+- PUT `/operations/current/planning` mantém versão/demandToken e viagens; local: `{kind:'local',stage,groupId,vehicleId,driverId}`; intermunicipal: `{kind:'intermunicipal',universityId,vehicleId,outbound:{driverId},return:{driverId}}`. Sem horários. Entradas antigas com horários mantêm compatibilidade estrutural; horários não determinam disponibilidade/conflito. Confirmação continua transacional e somente após fechamento/pendências resolvidas.
+- Consulta administrativa, itinerário e motorista limitados à data atual, inclusive para planos legados. UI organiza as APIs existentes nas abas Ida, Volta e Intermunicipal.
+
+As descrições B11/B12/B15 anteriores são históricas onde conflitarem com estes contratos. [Detalhes da correção](../specs/024-itinerario-diario/plan.md).
+
+Agendador023: executor interno opt-in, sem novo endpoint público e sem identidade administrativa simulada. Mensagens/tentativas permanecem nas consultas protegidas existentes. [Contrato interno](../specs/023-agendador-operacional/contracts/scheduler.md).
+
+B18.4 (05/11): consulta protegida `GET /api/v1/integrations/whatsapp/events` inclui `clarification` com estado, motivo, finalidade, texto e resposta associada. Admin/operador ativos; motorista bloqueado. Contexto não é aceito no corpo dos comandos administrativos: vem do webhook autenticado e é revalidado no backend. Revisão mantém o contrato B13 com justificativa e recibos revisados. [Detalhes](../specs/020-contexto-conversa/contracts/context.md).
+
+Pontos fixos de desembarque: contratos implementados em [022](../specs/022-desembarque-fixo/contracts.md). Novos padr?es usam locationId; endere?o livre via resolve foi desativado nesta entrega.
+
 ## B18.3 implementada — propostas de interpretação
 
 POST `/api/v1/integrations/whatsapp/events/:id/interpret`, corpo `{}`, admin/operator ativos, somente evento recebido no dia. Retorna tentativa persistida e proposta/motivo; não aceita texto ou comando fabricado. GET de eventos inclui interpretação, sem segredo/resposta bruta. Repetição não chama IA novamente. [Contrato](../specs/019-interpretacao-mensagens/contracts/http.md). Proposta não confirma viagem; ordem incerta continua pendente.
@@ -98,3 +120,7 @@ GET `/api/v1/messages` lista comunicações do dia; POST `/api/v1/messages/:id/r
 Aplicação controlada B18: POST /api/v1/integrations/whatsapp/events/:id/apply, corpo {}, admin/operator ativo. Retorna resultado aplicado/rejeitado/pendente; não aceita comando, horário, identidade ou ordering do cliente. Revalida a interpretação persistida e o recibo na mesma transação da jornada. Não envia WhatsApp.
 
 Consulta administrativa de eventos inclui os estados e instantes do despacho de recibos. Não há rota de envio arbitrário ou reenvio cego; o executor depende da flag de envio e da allowlist. [Contrato atualizado](../specs/019-interpretacao-mensagens/contracts/http.md).
+
+## Prévia Maps — 12/11/2026
+
+Todos os endpoints /maps exigem operations:manage. POST /maps/geocode recebe address e retorna candidates. GET /maps/groups/:id?mode=catalog|today retorna ordered, pending e token de revisão. id=direct com mode=direct permite trecho origem/destino. POST /maps/route recebe groupId, mode, token e locations na sequência origem, pontos do grupo, destino. Cada local inclui placeId, lat, lng, address, approximate e pointId (null nos extremos). Backend revalida sequência/revisão e retorna distanceMeters, durationSeconds e polyline. Conteúdo Google não é persistido. MAPS_UNCONFIGURED, MAPS_UNAVAILABLE e MAPS_ROUTE_NOT_FOUND são erros sanitizados.

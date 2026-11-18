@@ -1,3 +1,4 @@
+import { returnItem } from './return-item';
 import { randomUUID } from 'node:crypto';
 import { AccessError } from '../../access/domain/access';
 import { RegistryStore, type RegistryTransaction } from './ports';
@@ -69,6 +70,13 @@ export class LocationService {
         id: randomUUID(),
         active: true,
         version: 1,
+        ...(kind === 'point' || kind === 'dropoff'
+          ? {
+              addressDetails: parsed.addressDetails ?? null,
+              stopReference: parsed.stopReference ?? '',
+              legacyAddress: parsed.addressDetails ? null : parsed.address!,
+            }
+          : {}),
       };
       await tx.places.save(kind, value, true);
       return value;
@@ -90,6 +98,17 @@ export class LocationService {
       const value = {
         ...previous,
         ...parsed,
+        ...(kind === 'point' || kind === 'dropoff'
+          ? {
+              addressDetails:
+                parsed.addressDetails ??
+                (parsed.address === previous.address
+                  ? (previous.addressDetails ?? null)
+                  : null),
+              stopReference:
+                parsed.stopReference ?? previous.stopReference ?? '',
+            }
+          : {}),
         active: parsed.active!,
         version: previous.version + 1,
       };
@@ -163,7 +182,7 @@ export class LocationService {
     uuid(studentId);
     const command = parseDefault(side, input);
     const validated =
-      side === 'dropoff'
+      side === 'dropoff' && !command.locationId
         ? await this.validateAddress(actor, command.address!)
         : null;
     return this.run(actor, async (tx) => {
@@ -177,7 +196,13 @@ export class LocationService {
         throw new AccessError('CONSENT_REQUIRED', 409);
       let locationId: string | null = null;
       if (side === 'pickup') await this.pickup(tx, command.pointId!);
-      else locationId = (await this.persistReturn(tx, validated!)).location.id;
+      else if (command.locationId) {
+        const point = await this.required(tx, 'dropoff', command.locationId);
+        if (!point.active) throw new AccessError('LOCATION_INACTIVE', 409);
+        await this.group(tx, point.groupId!, 'dropoff');
+        locationId = point.id;
+      } else
+        locationId = (await this.persistReturn(tx, validated!)).location.id;
       const value: PlaceDefault = {
         studentId,
         direction: side,
@@ -203,7 +228,10 @@ export class LocationService {
           else {
             const location = await tx.places.location(value.locationId!);
             if (!location) throw new AccessError('NOT_FOUND', 404);
-            await this.regionGroup(tx, location.regionId);
+            const item = await returnItem(tx.places, location);
+            if (!item?.active || !item.groupId)
+              throw new AccessError('LOCATION_INACTIVE', 409);
+            await this.group(tx, item.groupId, 'dropoff');
           }
           return { value, usable: true, issue: null };
         } catch (error) {

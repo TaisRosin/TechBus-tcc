@@ -9,7 +9,7 @@ import { OperationService } from './operation.service';
 import { operationalDate } from '../../shared/time/operational-date';
 import { calendarDate } from '../../registry/domain/calendar';
 import { page } from '../../registry/domain/locations';
-import { consultable, previousDate, tripSide } from '../domain/consultation';
+import { consultable, tripSide } from '../domain/consultation';
 import { localInstant } from '../domain/operation';
 import type { Stage } from '../../fleet/domain/fleet';
 import { consultationRows } from './consultation-rows';
@@ -207,7 +207,7 @@ export class ConsultationService {
     const now = this.clock.now(),
       today = operationalDate(now);
     const result: DriverTrip[] = [];
-    for (const date of [previousDate(today), today]) {
+    for (const date of [today]) {
       const plan = await tx.operations.plan(date);
       if (
         !plan?.confirmedVersion ||
@@ -264,8 +264,9 @@ export class ConsultationService {
                   seats: vehicle.seats,
                 }
               : null,
-            start: localInstant(date, leg.start),
-            end: localInstant(date, leg.end),
+            start:
+              leg.start === undefined ? null : localInstant(date, leg.start),
+            end: leg.end === undefined ? null : localInstant(date, leg.end),
             needsAdjustment: !manifest || planning.status !== 'confirmed',
             students: passengers.map((row) => ({
               studentId: row.studentId,
@@ -295,14 +296,14 @@ export interface DriverTrip {
     kind: string;
     seats: number;
   } | null;
-  start: Date;
-  end: Date;
+  start: Date | null;
+  end: Date | null;
   needsAdjustment: boolean;
   students: {
     studentId: string;
     name: string;
     phone: string;
-    place: { id: string; label: string } | null;
+    place: { id: string; label: string; stopReference?: string } | null;
     origin: string;
   }[];
 }

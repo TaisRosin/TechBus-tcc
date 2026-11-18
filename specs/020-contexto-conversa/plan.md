@@ -1,6 +1,6 @@
 # Plano B18.4 — contexto de conversa
 
-Entrada: [spec.md](spec.md). Estado: desenho preliminar para tarefas, sem implementação. Reutilizar NestJS, TypeORM/PostgreSQL, módulos interpretation/whatsapp/messaging e revisão B13; nenhuma dependência nova presumida.
+Entrada: [spec.md](spec.md). Atualização 05/11: implementação validada localmente, com encerramento aprovado de uma pergunta por cadeia. Reutilizados NestJS, TypeORM/PostgreSQL, módulos interpretation/whatsapp/messaging e revisão B13; nenhuma dependência nova. Esquema: [data-model.md](data-model.md).
 
 ## Constituição e fronteiras
 
@@ -9,9 +9,9 @@ Preservar princípios I–V: decisões de negócio existentes, validação no ba
 ## Sequência e arquivos previstos
 
 1. Detalhar contrato em research.md, data-model.md e contracts/context.md a partir de backend/src/whatsapp/domain.ts, store.ts e dos retornos do adaptador. Inspecionar payload/patch do conector com dados sintéticos. Definir estados, invalidação, vínculo causal e limite de esclarecimento; decisões de negócio ainda necessárias ficam explícitas.
-2. Projetar persistência com migração versionada após a 1794500000000, sem synchronize ou alteração retroativa de eventos. Nome/timestamp e esquema serão definidos depois da leitura da skill de PostgreSQL. Portas em backend/src/interpretation/context.ts e context-store.ts são propostas de organização.
+2. Persistência na migração `1794700000000-conversation-context.ts`, após pontos fixos `1794600000000`, sem synchronize ou alteração retroativa de eventos. Funções de domínio em context.ts; persistência, preparação e encerramento em context-store.ts.
 3. Conectar contexto conservador em backend/src/interpretation/service.ts e projeção autenticada em backend/src/whatsapp/domain.ts/store.ts. Reutilizar application.service.ts e validação de jornada; não conferir identidade ao modelo.
-4. Implementar esclarecimento em backend/src/interpretation/clarification.ts, conectando reserva/despacho ao padrão seguro existente em backend/src/whatsapp/acknowledgement-dispatcher.ts. Não reutilizar estados de recibo de sucesso para perguntas sem avaliar seu contrato.
+4. Implementar esclarecimento em backend/src/interpretation/context-store.ts e despacho em backend/src/whatsapp/clarification-dispatcher.ts, usando reserva persistente, allowlist e resultado incerto sem retry. Tabela própria, separada dos recibos de viagem. Resolver pontos em places.ts e comando completo em journey.ts; expor estado no painel Messages.
 5. Integrar diagnóstico/revisão às consultas protegidas existentes em backend/src/whatsapp/service.ts e backend/src/journey/; reutilizar os serviços B13 sem criar um segundo mecanismo de autorização.
 
 ## Validação e estratégia

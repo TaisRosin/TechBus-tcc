@@ -1,5 +1,19 @@
 # Modelo de dados — proposta conceitual
 
+> **Consolidação para apresentação — 17/11/2026:** consulte o [guia completo](guia-apresentacao-andamento.md) e o [inventário técnico](inventario-tecnico-andamento.md). Backend e painel locais, contexto de conversa, agendador, pontos fixos, disponibilidade diária e prévia Google Maps estão implementados. Ensaio WhatsApp de 09/11 foi parcial; cadeia completa, hospedagem e avaliação acadêmica permanecem pendentes. Ordem de paradas continua manual; quarta utilização está fora da entrega. Trechos antigos abaixo que divergem desse estado são históricos; as evidências de cada incremento delimitam o que foi validado.
+
+11/11/2026 — Endereços dos pontos: cadastro próprio estruturado (logradouro/localização, número textual ou sem número, bairro, cidade, UF, Brasil, CEP e complemento) e referência da parada separada, exibida no itinerário/motorista. Bairro, CEP e complemento opcionais. Texto antigo preservado, detalhamento somente explícito; UUIDs, grupos, padrões e ordem manual mantidos. Validação estrutural não comprova endereço real. Maps/geocodificação/rotas continuam futuros. Implementação: specs/025-enderecos-pontos/.
+
+boarding_points e return_locations recebem address_details (JSONB validado), stop_reference (texto até 1000), legacy_address (cópia preservada). address é formatado pelo backend para compatibilidade. Migração aditiva 1794900000000, sem alteração de identidade/provider/external_key.
+
+## Modelo vigente por dia — 11/11/2026
+
+`fleet_vehicles.day_week` contém sete booleanos (domingo a sábado), ou null sem configuração. `fleet_exceptions.available` contém sim/não, ou null para herdar a semana. `week` e `windows` antigos permanecem preservados, fora da avaliação nova. Não presumir disponibilidade integral a partir de faixa parcial. Reservas novas em `operation_occupancies` usam data, etapa e trecho; índices únicos parciais impedem duplicar veículo na etapa ou motorista no trecho. Horários antigos permanecem nos registros legados; novos registros não têm início/fim. Migrações aditivas `1794800000000` e `1794800000001`; planos confirmados antigos sinalizam revisão.
+
+B18.4: migração `1794700000000-conversation-context.ts` acrescenta `whatsapp_events.reply_to`, `conversation_clarifications` e `message_interpretations.context_event_id`. Pergunta, reserva, resultado e consumo persistentes; unicidade por origem e cadeia ativa por aluno/dia, identificador do provedor por instância. Aplicação tem SELECT/INSERT/UPDATE, sem DELETE. [Modelo físico e estados](../specs/020-contexto-conversa/data-model.md).
+
+Pontos fixos (04/11): migra??o1794600000000 estende return_locations com nome, endere?o descritivo, grupo direto de distribui??o, ativo e vers?o. Registros legados preservam regi?o; constraint separa as duas formas sem convers?o autom?tica. IDs de padr?es/jornadas/itiner?rios permanecem. Atualiza??o autorizada ao papel app, sem DELETE/DDL.
+
 ## Persistência B18.3
 
 Complemento: conversation_jobs registra a reserva de processamento; journey_acknowledgements guarda o recibo transacional e a tentativa de despacho. Migrações1794400000000/1794500000000 preservam evidências de processamento/envio. [Estados e limites](../specs/019-interpretacao-mensagens/automation.md).
@@ -34,10 +48,10 @@ Entidades e restrições para orientar o backend. B03 implementa somente a tabel
 | ComandoRecebido | identificador externo/idempotência, ator/origem, recebido em, intenção validada, resultado, jornada, versão | Registro mínimo para deduplicação/ordenação; texto bruto e retenção dependem de política, não salvar conteúdo ilimitado por padrão. |
 | SugestaoPadrao | aluno, sentido, local alternativo, sequência de referência, estado proposta/aceita/recusada, consentimento | Única por sequência; aceite explícito. Contribuições usam jornadas confirmadas, não embarque real. |
 | Veiculo | número/identificação frota, placa, tipo van/micro/ônibus, assentos passageiros, ativo | Placa/identificação únicas no cadastro; assentos inteiro positivo. |
-| DisponibilidadeVeiculo | veículo, data/intervalo ou etapa, disponível | Representação de intervalos/etapas a fechar; precisa distinguir simultaneidade e reuso posterior. |
+| DisponibilidadeVeiculo | veículo, semana/exceção por data, disponível | Sim/não por dia; sem horários. |
 | PlanejamentoDia | data, versão de demanda, status rascunho/ajuste necessário/confirmado, confirmador | Não confirmar com demanda desatualizada, conflito ou excesso de assentos. |
-| Alocacao | planejamento, tipo local/intermunicipal, universidade ou grupo, veículo, janela de ocupação, estado operacional | Intermunicipal vincula o mesmo veículo a ida/permanência/retorno; local é manual. Uma alocação confirmada não sobrepõe uso simultâneo do veículo. |
-| TrechoViagem | alocação, etapa, início/fim planejados, motorista | Atribuição por veículo/trecho; motorista pode variar por trecho sem trocar veículo intermunicipal. |
+| Alocacao | planejamento, tipo local/intermunicipal, universidade ou grupo, veículo, data e etapa, estado operacional | Intermunicipal vincula o mesmo veículo a ida/permanência/retorno; local é manual. Veículo não atende dois grupos/universidades na mesma etapa e dia; reuso entre etapas permitido. |
+| TrechoViagem | alocação, etapa, sentido, motorista | Atribuição por veículo/trecho; motorista pode variar por trecho sem trocar veículo intermunicipal. |
 | MensagemSaida | jornada/destinatário, tipo/slot, conteúdo aprovado ou referência, estado, chave de efeito | Separa comunicação de confirmação. Correção manual não cria mensagem automática. |
 | TentativaEnvio | mensagem, número tentativa, identificador provedor, estado/erro | Callback e reenvio não alteram RespostaTrecho. |
 | PendenciaOperacional | tipo, entidade referida, estado, detalhe mínimo | Incompreensão, falha, endereço sem ordem, conflito; não representa aprovação tardia do aluno. |
@@ -91,7 +105,7 @@ Diagrama parcial: não substitui as restrições da tabela. Desativação B06 pr
 Sequências são derivadas das jornadas existentes; nenhuma tabela duplicada de contribuições. Decisões sobre padrões/sugestões ficam em place_pattern_decisions, ligadas ao recibo e ao local, com evidência atômica no padrão. Aplicação pode consultar/inserir decisões, sem editar/apagar. [Modelo físico B10](../specs/009-padroes-sequencia/data-model.md). Sem histórico público ou retenção automática.
 
 ## Implementação B11
-Frota, motoristas e exceções em três tabelas; semana e faixas estruturadas com restrições no banco, revisão compartilhada do veículo e aplicação sem DELETE/DDL. Etapas são avaliadas como propostas, sem alocação persistida nesta etapa. [Modelo físico B11](../specs/010-frota-disponibilidade/data-model.md).
+Registro histórico B11: frota, motoristas e exceções em três tabelas. Semana/faixas substituídas pelo modelo diário acima; revisão compartilhada do veículo e aplicação sem DELETE/DDL preservadas. Etapas são avaliadas como propostas, sem alocação persistida nesta etapa. [Modelo físico B11](../specs/010-frota-disponibilidade/data-model.md).
 
 ## Implementação B12
 Planos separam rascunho e fotografia confirmada; ocupações de veículo/motorista usam timestamps absolutos para detectar conflitos entre datas. Substituição desativa ocupações antigas somente na confirmação válida; falha reverte a transação. Triggers de jornada/recibo marcam revisão necessária sem excluir registros. [Modelo físico B12](../specs/011-alocacao-planejamento/data-model.md). Sem DELETE/DDL para a aplicação e sem retenção automática.

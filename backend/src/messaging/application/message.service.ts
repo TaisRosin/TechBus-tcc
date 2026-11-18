@@ -87,15 +87,25 @@ export class MessageService {
       for (const student of students) {
         if (operationalDate(this.clock.now()) !== date)
           return { ids, failures };
-        const message = await this.prepare(student.id);
-        if (message?.status === 'ready') ids.push(message.id);
+        try {
+          const message = await this.prepare(student.id);
+          if (message?.status === 'ready') ids.push(message.id);
+        } catch (error) {
+          failures.push({
+            studentId: student.id,
+            code:
+              error instanceof AccessError
+                ? error.code
+                : 'PREPARATION_UNAVAILABLE',
+          });
+        }
       }
       if (students.length < 100) break;
     }
     return { ids, failures };
   }
-  dispatch(id: string) {
-    return this.send(id);
+  dispatch(id: string, allowedPhones?: readonly string[]) {
+    return this.send(id, undefined, allowedPhones);
   }
   retry(actor: string, id: string, input: unknown) {
     const { expectedVersion } = exact(input, ['expectedVersion']);
@@ -104,6 +114,7 @@ export class MessageService {
   private async send(
     id: string,
     retry?: { actor: string; version: number },
+    allowedPhones?: readonly string[],
   ): Promise<OutgoingMessage> {
     uuid(id);
     const claimed = await this.store.transaction(async (tx) => {
@@ -129,6 +140,8 @@ export class MessageService {
         if (message.status !== 'failed')
           throw new AccessError('RETRY_NOT_ALLOWED', 409);
       } else if (message.status !== 'ready') return { message, request: null };
+      if (content && allowedPhones && !allowedPhones.includes(content.phone))
+        return { message, request: null };
       if (!content) {
         message.status = 'skipped';
         message.code = 'NO_LONGER_RELEVANT';

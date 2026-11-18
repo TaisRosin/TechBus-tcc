@@ -12,12 +12,16 @@ import { RegistryService } from '../../src/registry/application/registry.service
 import { JourneyService } from '../../src/journey/application/journey.service';
 import { ConversationProcessor } from '../../src/interpretation/processor';
 import { AcknowledgementDispatcher } from '../../src/whatsapp/acknowledgement-dispatcher';
+import { LocationService } from '../../src/registry/application/location.service';
+import { directInterpretation } from '../../src/interpretation/domain';
 
 describe('Applying interpreted WhatsApp messages atomically', () => {
   let db: DataSource, store: WhatsAppStore, registry: PostgresRegistryStore;
   const actor = randomUUID(),
     instance = randomUUID(),
     students: string[] = [];
+  const fixedPlaces: string[] = [],
+    fixedGroups: string[] = [];
   let ownsCalendar = false;
   let instant = new Date('2026-10-29T16:59:59-03:00');
   const clock = { now: () => instant };
@@ -79,6 +83,13 @@ describe('Applying interpreted WhatsApp messages atomically', () => {
       await db.query('DELETE FROM app.students WHERE id=ANY($1::uuid[])', [
         students,
       ]);
+      await db.query(
+        'DELETE FROM app.return_locations WHERE id=ANY($1::uuid[])',
+        [fixedPlaces],
+      );
+      await db.query('DELETE FROM app.local_groups WHERE id=ANY($1::uuid[])', [
+        fixedGroups,
+      ]);
       await db.query('DELETE FROM app.team_users WHERE id=$1', [actor]);
       if (ownsCalendar)
         await db.query(
@@ -126,6 +137,65 @@ describe('Applying interpreted WhatsApp messages atomically', () => {
     return result.id;
   }
   const stamp = () => Math.floor(instant.getTime() / 1000) - 10;
+  it('applies trip and a named fixed dropoff as a complete command', async () => {
+    const locations = new LocationService(registry, {
+      validate: () => Promise.reject(new Error('MAPS_NOT_USED')),
+    });
+    const group = await locations.create(actor, 'group', {
+      name: 'Synthetic context group',
+      direction: 'dropoff',
+    });
+    fixedGroups.push(group.id);
+    const name = 'Synthetic point ' + randomUUID();
+    const point = await locations.create(actor, 'dropoff', {
+      name,
+      address: 'Fixed company point',
+      groupId: group.id,
+    });
+    fixedPlaces.push(point.id);
+    const s = await student(),
+      id = await message(s, 'vou', stamp());
+    await db.query(
+      'UPDATE app.message_interpretations SET proposal=$2::jsonb WHERE event_id=$1',
+      [
+        id,
+        JSON.stringify({ ...directInterpretation('vou')!, dropoffPlace: name }),
+      ],
+    );
+    expect(await apply.applyReceived(id)).toMatchObject({ status: 'applied' });
+    expect(
+      await db.query(
+        'SELECT pickup_state,dropoff_state,location_id FROM app.daily_journeys WHERE student_id=$1',
+        [s.id],
+      ),
+    ).toEqual([
+      {
+        pickup_state: 'confirmado',
+        dropoff_state: 'confirmado',
+        location_id: point.id,
+      },
+    ]);
+    const other = await student(),
+      bad = await message(other, 'vou', stamp());
+    await db.query(
+      'UPDATE app.message_interpretations SET proposal=$2::jsonb WHERE event_id=$1',
+      [
+        bad,
+        JSON.stringify({
+          ...directInterpretation('vou')!,
+          dropoffPlace: 'Unknown ' + randomUUID(),
+        }),
+      ],
+    );
+    expect(await apply.applyReceived(bad)).toMatchObject({
+      code: 'LOCATION_NOT_FOUND',
+    });
+    expect(
+      await db.query('SELECT 1 FROM app.daily_journeys WHERE student_id=$1', [
+        other.id,
+      ]),
+    ).toEqual([]);
+  });
   it('processes a durable event once across concurrent worker runs without an admin identity', async () => {
     const s = await student();
     const id = await message(s, 'vou', stamp());

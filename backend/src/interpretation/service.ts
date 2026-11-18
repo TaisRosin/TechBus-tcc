@@ -7,6 +7,7 @@ import { WhatsAppStore } from '../whatsapp/store';
 import { directInterpretation, parseProposal, type Proposal } from './domain';
 import type { InterpretationOutcome } from './gemini';
 import { proposalCommand } from './command';
+import { quotedContext } from './context-store';
 
 export interface InterpretationView {
   eventId: string;
@@ -141,13 +142,19 @@ export class InterpretationService {
         `INSERT INTO app.message_interpretations(event_id,state,source,code,started_at) VALUES($1,'processing','none','INTERPRETATION_IN_PROGRESS',$2) RETURNING ${columns}`,
         [id, now],
       );
-      return { view: rows[0], text: event.text_body };
+      return {
+        view: rows[0],
+        text: event.text_body,
+        context: await quotedContext(m, id, this.clock.now()),
+      };
     });
     if (claim.text === null) return claim.view;
-    let proposal = directInterpretation(claim.text),
+    let proposal = claim.context
+        ? claim.context.proposal
+        : directInterpretation(claim.text),
       code: string | null = null;
-    const source = proposal ? 'rules' : 'gemini';
-    if (!proposal) {
+    const source = proposal || claim.context ? 'rules' : 'gemini';
+    if (!proposal && !claim.context) {
       try {
         const result = await this.provider.interpret(claim.text);
         proposal = result.proposal ? parseProposal(result.proposal) : null;
@@ -160,6 +167,14 @@ export class InterpretationService {
       const authorized = await this.authorized(m, actor);
       const event = await this.event(m, id);
       const blocked = await this.blocker(m, event);
+      const context = await quotedContext(m, id, this.clock.now());
+      if (claim.context) {
+        proposal =
+          context?.question.event_id === claim.context.question.event_id
+            ? context.proposal
+            : null;
+        if (!proposal) code = 'CONTEXT_REVIEW_REQUIRED';
+      }
       if (!authorized || blocked) {
         proposal = null;
         code = !authorized ? 'ACCESS_REVOKED' : blocked;
@@ -167,13 +182,14 @@ export class InterpretationService {
         code = proposalCommand(proposal).code ?? 'ORDER_UNCERTAIN';
       else code ??= 'INVALID_PROPOSAL';
       const rows = await m.query<[InterpretationView[], number]>(
-        `UPDATE app.message_interpretations SET state='completed',source=$2,proposal=$3::jsonb,code=$4,finished_at=$5 WHERE event_id=$1 RETURNING ${columns}`,
+        `UPDATE app.message_interpretations SET state='completed',source=$2,proposal=$3::jsonb,code=$4,finished_at=$5,context_event_id=$6 WHERE event_id=$1 RETURNING ${columns}`,
         [
           id,
           source,
           proposal ? JSON.stringify(proposal) : null,
           code,
           this.clock.now(),
+          claim.context?.question.event_id ?? null,
         ],
       );
       return { view: rows[0][0], authorized };

@@ -1,3 +1,4 @@
+import { returnItem } from '../../registry/application/return-item';
 import type { RegistryTransaction } from '../../registry/application/ports';
 import { evaluateEligibility } from '../../registry/domain/calendar';
 import { emptyLegs, type Legs } from '../../journey/domain/journey';
@@ -9,8 +10,8 @@ export interface ConsultationRow
   name: string;
   phone: string;
   universityId: string;
-  pickupPlace: { id: string; label: string } | null;
-  dropoffPlace: { id: string; label: string } | null;
+  pickupPlace: { id: string; label: string; stopReference?: string } | null;
+  dropoffPlace: { id: string; label: string; stopReference?: string } | null;
   issues: string[];
   pending: string[];
   eligible: boolean;
@@ -69,7 +70,7 @@ export async function consultationRows(
           side === 'pickup' && journey?.pointId
             ? await tx.places.get('point', journey.pointId)
             : location
-              ? await tx.places.get('region', location.regionId)
+              ? await returnItem(tx.places, location)
               : null;
         const group = item?.groupId
           ? await tx.places.get('group', item.groupId)
@@ -78,8 +79,20 @@ export async function consultationRows(
           row[side === 'pickup' ? 'pickupGroupId' : 'dropoffGroupId'] =
             group.id;
           row[side === 'pickup' ? 'pickupPlace' : 'dropoffPlace'] = location
-            ? { id: location.id, label: location.label }
-            : { id: item.id, label: item.address ?? item.name };
+            ? {
+                id: location.id,
+                label: location.label,
+                ...(location.stopReference
+                  ? { stopReference: location.stopReference }
+                  : {}),
+              }
+            : {
+                id: item.id,
+                label: item.address ?? item.name,
+                ...(item.stopReference
+                  ? { stopReference: item.stopReference }
+                  : {}),
+              };
         } else if (row[side].state === 'confirmado')
           row.issues.push(`${side.toUpperCase()}_LOCATION_INVALID`);
       }

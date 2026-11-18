@@ -1,6 +1,5 @@
 import type { ProposedTrip } from '../../fleet/domain/fleet';
 import { operationalDate } from '../../shared/time/operational-date';
-import { localInstant } from './operation';
 export function previousDate(date: string): string {
   return new Date(Date.parse(`${date}T12:00:00Z`) - 86400000)
     .toISOString()
@@ -11,12 +10,8 @@ export function consultable(
   trips: ProposedTrip[],
   now: Date,
 ): boolean {
-  const today = operationalDate(now);
-  return (
-    date === today ||
-    (date === previousDate(today) &&
-      trips.some((t) => t.legs.some((l) => localInstant(date, l.end) > now)))
-  );
+  void trips;
+  return date === operationalDate(now);
 }
 export function tripSide(
   trip: ProposedTrip,

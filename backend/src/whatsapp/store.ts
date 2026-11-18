@@ -100,8 +100,8 @@ export class WhatsAppStore {
           ? 'unknown_contact'
           : event.disposition;
       await m.query(
-        `INSERT INTO app.whatsapp_events(id,instance,kind,external_id,fingerprint,received_at,phone,text_body,provider_status,student_id,receipt_id,disposition,original_order)
-        VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::jsonb)`,
+        `INSERT INTO app.whatsapp_events(id,instance,kind,external_id,fingerprint,received_at,phone,text_body,provider_status,student_id,receipt_id,disposition,original_order,reply_to)
+        VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::jsonb,$14)`,
         [
           id,
           instance,
@@ -116,6 +116,7 @@ export class WhatsAppStore {
           student ? id : null,
           disposition,
           event.originalOrder ? JSON.stringify(event.originalOrder) : null,
+          event.replyTo ?? null,
         ],
       );
       return { id, disposition };

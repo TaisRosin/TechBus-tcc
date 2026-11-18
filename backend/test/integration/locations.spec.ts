@@ -6,6 +6,12 @@ import { readEnvironment } from '../../src/config/environment';
 import { PostgresRegistryStore } from '../../src/registry/infrastructure/postgres-registry-store';
 import { LocationService } from '../../src/registry/application/location.service';
 import { RegistryService } from '../../src/registry/application/registry.service';
+import { MapsService } from '../../src/maps/maps.service';
+import { GoogleMaps } from '../../src/maps/google-maps';
+import { ItineraryService } from '../../src/itinerary/application/itinerary.service';
+import { OperationService } from '../../src/operation/application/operation.service';
+import { ConsultationService } from '../../src/operation/application/consultation.service';
+import { SystemClock } from '../../src/shared/time/system-clock';
 
 describe('Local places persisted in isolated PostgreSQL', () => {
   let source: DataSource,
@@ -18,7 +24,10 @@ describe('Local places persisted in isolated PostgreSQL', () => {
     studentIds: string[] = [],
     provider = randomUUID();
   let validation: unknown = { status: 'indeterminate' };
-  const create = async (kind: 'group' | 'region' | 'point', input: unknown) => {
+  const create = async (
+    kind: 'group' | 'region' | 'point' | 'dropoff',
+    input: unknown,
+  ) => {
     const r = await service.create(actor, kind, input);
     ids.push(r.id);
     return r;
@@ -49,9 +58,10 @@ describe('Local places persisted in isolated PostgreSQL', () => {
         'DELETE FROM app.student_place_defaults WHERE student_id=ANY($1::uuid[])',
         [studentIds],
       );
-      await source.query('DELETE FROM app.return_locations WHERE provider=$1', [
-        provider,
-      ]);
+      await source.query(
+        'DELETE FROM app.return_locations WHERE provider=$1 OR id=ANY($2::uuid[])',
+        [provider, ids],
+      );
       await source.query(
         'DELETE FROM app.boarding_points WHERE id=ANY($1::uuid[])',
         [ids],
@@ -74,6 +84,269 @@ describe('Local places persisted in isolated PostgreSQL', () => {
       await source.query('DELETE FROM app.team_users WHERE id=$1', [actor]);
       await source.destroy();
     }
+  });
+  it('revalidates route order, pending stops and access before calling Google', async () => {
+    const group = await create('group', { name: 'Mapa', direction: 'pickup' });
+    const point = await create('point', {
+      name: 'Parada',
+      address: 'Rua A',
+      groupId: group.id,
+    });
+    const last = await create('point', {
+      name: 'Final',
+      address: 'Rua B',
+      groupId: group.id,
+    });
+    const middle = await create('point', {
+      name: 'Meio vazio',
+      address: 'Rua C',
+      groupId: group.id,
+    });
+    const clock = new SystemClock();
+    const operations = new OperationService(store, clock);
+    const itineraries = new ItineraryService(
+      store,
+      clock,
+      operations,
+      new ConsultationService(store, clock, operations),
+    );
+    const google = new GoogleMaps('test');
+    const route = jest.spyOn(google, 'route').mockResolvedValue({
+      distanceMeters: 1000,
+      durationSeconds: 100,
+      polyline: 'encoded',
+    });
+    const maps = new MapsService(store, itineraries, google);
+    const location = {
+      placeId: 'google-place',
+      lat: -26,
+      lng: -52,
+      address: 'Rua A',
+      approximate: false,
+    };
+    const locations = [
+      { ...location, pointId: point.id },
+      { ...location, pointId: middle.id },
+      { ...location, pointId: last.id },
+    ];
+    let view = await maps.points(actor, group.id, 'catalog');
+    await expect(
+      maps.route(actor, {
+        groupId: group.id,
+        mode: 'catalog',
+        token: view.token,
+        locations,
+      }),
+    ).rejects.toMatchObject({ code: 'ITINERARY_INCOMPLETE' });
+    await itineraries.setOrder(actor, group.id, {
+      expectedVersion: 0,
+      stopIds: [point.id, middle.id, last.id],
+    });
+    await expect(
+      maps.route(actor, {
+        groupId: group.id,
+        mode: 'catalog',
+        token: view.token,
+        locations,
+      }),
+    ).rejects.toMatchObject({ code: 'PREVIEW_CHANGED' });
+    expect(
+      (await maps.points(actor, group.id, 'today')).ordered.map((p) => p.id),
+    ).toEqual([point.id, last.id]);
+    view = await maps.points(actor, group.id, 'catalog');
+    await expect(
+      maps.route(actor, {
+        groupId: group.id,
+        mode: 'catalog',
+        token: view.token,
+        locations: [...locations].reverse(),
+      }),
+    ).rejects.toMatchObject({ code: 'INVALID_INPUT' });
+    expect(route).not.toHaveBeenCalled();
+    await expect(
+      maps.route(actor, {
+        groupId: group.id,
+        mode: 'catalog',
+        token: view.token,
+        locations,
+      }),
+    ).resolves.toMatchObject({ distanceMeters: 1000 });
+    route.mockImplementationOnce(async () => {
+      await service.update(actor, 'point', point.id, {
+        name: point.name,
+        address: 'Rua alterada',
+        groupId: group.id,
+        active: true,
+        expectedVersion: point.version,
+      });
+      return {
+        distanceMeters: 1000,
+        durationSeconds: 100,
+        polyline: 'encoded',
+      };
+    });
+    await expect(
+      maps.route(actor, {
+        groupId: group.id,
+        mode: 'catalog',
+        token: view.token,
+        locations,
+      }),
+    ).rejects.toMatchObject({ code: 'PREVIEW_CHANGED' });
+    await expect(
+      maps.points(randomUUID(), 'direct', 'direct'),
+    ).rejects.toBeDefined();
+    const daily = await itineraries.preview(actor, group.id, {});
+    jest.spyOn(itineraries, 'preview').mockResolvedValueOnce({
+      ...daily,
+      candidate: {
+        ordered: [],
+        pending: [{ id: randomUUID(), label: 'Local legado', studentIds: [] }],
+      },
+    });
+    await expect(maps.points(actor, group.id, 'today')).rejects.toMatchObject({
+      code: 'MAPS_POINT_UNAVAILABLE',
+    });
+    await source.query('DELETE FROM app.group_stop_orders WHERE group_id=$1', [
+      group.id,
+    ]);
+  });
+  it.each(['point', 'dropoff'] as const)(
+    'preserves legacy text and identity when structuring a %s',
+    async (kind) => {
+      const group = await create('group', {
+        name: 'Grupo endereço',
+        direction: kind === 'point' ? 'pickup' : 'dropoff',
+      });
+      const original = 'Em frente à praça, portão antigo';
+      const point = await create(kind, {
+        name: 'Praça',
+        groupId: group.id,
+        address: original,
+      });
+      const addressDetails = {
+        street: 'Praça central',
+        number: '',
+        noNumber: true,
+        neighborhood: '',
+        city: 'São Lourenço do Oeste',
+        state: 'SC',
+        country: 'BR',
+        postalCode: '',
+        complement: '',
+      };
+      const input = {
+        name: point.name,
+        groupId: group.id,
+        addressDetails,
+        stopReference: 'Lado da farmácia',
+        active: true,
+        expectedVersion: point.version,
+      };
+      await service.update(actor, kind, point.id, input);
+      const saved = (await second.list(actor, kind, { limit: '100' })).find(
+        (p) => p.id === point.id,
+      );
+      expect(saved).toMatchObject({
+        id: point.id,
+        legacyAddress: original,
+        addressDetails,
+        stopReference: 'Lado da farmácia',
+        address: 'Praça central, s/n — São Lourenço do Oeste/SC — Brasil',
+        version: 2,
+      });
+      await expect(
+        second.update(actor, kind, point.id, input),
+      ).rejects.toMatchObject({ code: 'VERSION_CONFLICT' });
+      // An old client changing only the name must not erase the new fields.
+      await service.update(actor, kind, point.id, {
+        name: 'Praça renomeada',
+        groupId: group.id,
+        address: saved!.address,
+        active: true,
+        expectedVersion: 2,
+      });
+      expect(
+        (await second.list(actor, kind, { limit: '100' })).find(
+          (p) => p.id === point.id,
+        ),
+      ).toMatchObject({
+        legacyAddress: original,
+        addressDetails,
+        stopReference: 'Lado da farmácia',
+        version: 3,
+      });
+    },
+  );
+
+  it('creates company dropoff points without geography and preserves inactive default references', async () => {
+    const group = await create('group', {
+      name: 'Distribuição fixa',
+      direction: 'dropoff',
+    });
+    const pickup = await create('group', {
+      name: 'Coleta fixa',
+      direction: 'pickup',
+    });
+    await expect(
+      service.create(actor, 'dropoff', {
+        name: 'Praça',
+        address: 'Rua A',
+        groupId: pickup.id,
+      }),
+    ).rejects.toMatchObject({ code: 'GROUP_DIRECTION_MISMATCH' });
+    const point = await create('dropoff', {
+      name: 'Praça',
+      address: 'Rua A',
+      groupId: group.id,
+    });
+    const created = await new RegistryService(store).createStudent(actor, {
+      name: 'Aluno ponto fixo',
+      phone: '+55469' + randomInt(10000000, 99999999),
+      universityId: 'unimater',
+      habitualDays: [],
+      contract: { startDate: '2026-01-01', endDate: '2026-12-31' },
+    });
+    studentIds.push(created.student.id);
+    const isolated = new LocationService(store, {
+      validate: () => {
+        throw new Error('GEOGRAPHY_MUST_NOT_RUN');
+      },
+    });
+    await isolated.setDefault(actor, created.student.id, 'dropoff', {
+      locationId: point.id,
+      source: 'initial',
+      evidence: 'Cadastro da equipe',
+      expectedVersion: 0,
+    });
+    expect(
+      (await isolated.defaults(actor, created.student.id)).dropoff.usable,
+    ).toBe(true);
+    const input = {
+      name: point.name,
+      address: point.address,
+      groupId: group.id,
+      active: false,
+      expectedVersion: 1,
+    };
+    await isolated.update(actor, 'dropoff', point.id, input);
+    await expect(
+      isolated.update(actor, 'dropoff', point.id, input),
+    ).rejects.toMatchObject({ code: 'VERSION_CONFLICT' });
+    expect(
+      (await isolated.defaults(actor, created.student.id)).dropoff,
+    ).toMatchObject({ usable: false, value: { locationId: point.id } });
+    await expect(
+      isolated.setDefault(actor, created.student.id, 'dropoff', {
+        locationId: point.id,
+        source: 'request',
+        evidence: 'Pedido',
+        expectedVersion: 1,
+      }),
+    ).rejects.toMatchObject({ code: 'LOCATION_INACTIVE' });
+    expect(
+      (await isolated.list(actor, 'dropoff')).some((p) => p.id === point.id),
+    ).toBe(true);
   });
   it('keeps one correctly directed group per point/region and protects revisions', async () => {
     const pickup = await create('group', {

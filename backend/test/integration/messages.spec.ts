@@ -18,6 +18,7 @@ import {
 } from '../../src/registry/application/ports';
 import { CorrectionService } from '../../src/journey/application/correction.service';
 import { Messages1793700000000 } from '../../src/infrastructure/database/migrations/1793700000000-messages';
+import { OperationalScheduler } from '../../src/messaging/application/operational-scheduler';
 
 describe('Persistent messages on isolated PostgreSQL', () => {
   let source: DataSource,
@@ -391,6 +392,105 @@ describe('Persistent messages on isolated PostgreSQL', () => {
       pickup: { state: 'recusado' },
       dropoff: { state: 'recusado' },
     });
+  });
+  it('runs scheduled slots, catches up only the latest and reserves once across workers', async () => {
+    const s = await student();
+    const runner = () =>
+      new OperationalScheduler(service, true, true, [s.phone]);
+    instant = '2026-10-26T04:59:59-03:00';
+    await runner().runOnce();
+    expect(sent.filter((r) => r.phone === s.phone)).toHaveLength(0);
+    for (const time of ['05:00:00', '11:00:00', '13:00:00', '16:00:00']) {
+      instant = `2026-10-26T${time}-03:00`;
+      await Promise.all([runner().runOnce(), runner().runOnce()]);
+    }
+    expect(sent.filter((r) => r.phone === s.phone)).toHaveLength(4);
+    const late = await student();
+    instant = '2026-10-26T16:20:00-03:00';
+    await new OperationalScheduler(service, true, true, [late.phone]).runOnce();
+    expect(
+      await source.query(
+        'SELECT slot,status FROM app.outgoing_messages WHERE student_id=$1',
+        [late.id],
+      ),
+    ).toEqual([{ slot: 16, status: 'sent' }]);
+    instant = '2026-10-26T17:00:00-03:00';
+    await runner().runOnce();
+    expect(sent.filter((r) => r.phone === s.phone)).toHaveLength(4);
+  });
+  it('keeps disallowed/disabled sends ready and does not retry uncertain results on restart', async () => {
+    const s = await student();
+    await new OperationalScheduler(service, true, false, [s.phone]).runOnce();
+    const message = (await service.prepare(s.id))!;
+    await new OperationalScheduler(service, true, true, []).runOnce();
+    expect(
+      await source.query(
+        'SELECT 1 FROM app.message_attempts WHERE message_id=$1',
+        [message.id],
+      ),
+    ).toEqual([]);
+    await service.dispatch(message.id, ['+5549999999999']);
+    expect((await service.prepare(s.id))?.status).toBe('ready');
+    outcome = { status: 'unknown' };
+    await new OperationalScheduler(service, true, true, [s.phone]).runOnce();
+    await new OperationalScheduler(service, true, true, [s.phone]).runOnce();
+    expect(sent.filter((r) => r.phone === s.phone)).toHaveLength(1);
+    expect((await service.prepare(s.id))?.status).toBe('unknown');
+  });
+  it('isolates a preparation failure and recovers without blocking other students', async () => {
+    const broken = await student(),
+      healthy = await student(),
+      prepare = service.prepare.bind(service);
+    const fault = jest
+      .spyOn(service, 'prepare')
+      .mockImplementation((id) =>
+        id === broken.id ? Promise.reject(new Error('private')) : prepare(id),
+      );
+    const report = jest.fn();
+    try {
+      await new OperationalScheduler(
+        service,
+        true,
+        true,
+        [broken.phone, healthy.phone],
+        report,
+      ).runOnce();
+    } finally {
+      fault.mockRestore();
+    }
+    expect(sent.filter((r) => r.phone === healthy.phone)).toHaveLength(1);
+    expect(report).toHaveBeenCalledWith('SCHEDULER_PREPARATION_FAILED');
+    await new OperationalScheduler(service, true, true, [
+      broken.phone,
+      healthy.phone,
+    ]).runOnce();
+    expect(sent.filter((r) => r.phone === broken.phone)).toHaveLength(1);
+    expect(sent.filter((r) => r.phone === healthy.phone)).toHaveLength(1);
+  });
+  it('closes automatically, informs the default return and never restores a cancellation', async () => {
+    const s = await student(),
+      silent = await student();
+    await command(s.id, { kind: 'answer', pickup: 'yes', dropoff: 'unsure' });
+    instant = '2026-10-26T17:00:00-03:00';
+    const runner = () =>
+      new OperationalScheduler(service, true, true, [s.phone, silent.phone]);
+    await runner().runOnce();
+    expect(
+      await store.transaction((tx) => tx.journeys.get(s.id, '2026-10-26')),
+    ).toMatchObject({
+      dropoff: { state: 'confirmado', origin: 'padrao_fechamento' },
+    });
+    expect(sent.filter((r) => r.phone === s.phone)).toHaveLength(1);
+    expect(sent.filter((r) => r.phone === silent.phone)).toHaveLength(0);
+    expect(
+      await store.transaction((tx) => tx.journeys.get(silent.id, '2026-10-26')),
+    ).toBeNull();
+    await command(s.id, { kind: 'cancel_return' });
+    await runner().runOnce();
+    expect(
+      await store.transaction((tx) => tx.journeys.get(s.id, '2026-10-26')),
+    ).toMatchObject({ dropoff: { state: 'cancelado' } });
+    expect(sent.filter((r) => r.phone === s.phone)).toHaveLength(1);
   });
   it('does not turn an ineligible extra into an eligible initiation retrospectively', async () => {
     const s = await student([]);

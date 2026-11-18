@@ -1,5 +1,33 @@
 # Requisitos e critérios de aceitação
 
+18/11/2026 — Rotas por grupo: na prévia Maps, origem é o primeiro ponto e destino é o último da ordem padrão do grupo, mesmo sem passageiros nesses extremos. No modo do dia, somente os intermediários são filtrados por passageiros confirmados. Sem extremos avulsos ou duplicação; pontos indisponíveis exigem revisão. Trecho direto/intermunicipal mantém origem e destino informados. Esta decisão substitui os extremos livres da prévia por grupo de 12/11. Evidências em specs/026-mapas-rotas/verification.md.
+
+> **Consolidação para apresentação — 17/11/2026:** consulte o [guia completo](guia-apresentacao-andamento.md) e o [inventário técnico](inventario-tecnico-andamento.md). Backend e painel locais, contexto de conversa, agendador, pontos fixos, disponibilidade diária e prévia Google Maps estão implementados. Ensaio WhatsApp de 09/11 foi parcial; cadeia completa, hospedagem e avaliação acadêmica permanecem pendentes. Ordem de paradas continua manual; quarta utilização está fora da entrega. Trechos antigos abaixo que divergem desse estado são históricos; as evidências de cada incremento delimitam o que foi validado.
+
+12/11/2026 — Integração Maps implementada e verificada em specs/026-mapas-rotas/verification.md. Mapa administrativo e prévia de percurso com Geocoding, Routes e Maps JavaScript, ordem manual, origem/destino explícitos, distância/duração estimada. Escolhas geográficas e respostas Google somente na sessão da tela. Avisos de chegada aos alunos são proposta posterior. Este incremento supera a indicação de Maps inteiramente futuro nos registros anteriores.
+
+11/11/2026 — Endereços dos pontos: cadastro próprio estruturado (logradouro/localização, número textual ou sem número, bairro, cidade, UF, Brasil, CEP e complemento) e referência da parada separada, exibida no itinerário/motorista. Bairro, CEP e complemento opcionais. Texto antigo preservado, detalhamento somente explícito; UUIDs, grupos, padrões e ordem manual mantidos. Validação estrutural não comprova endereço real. Maps/geocodificação/rotas continuam futuros. Implementação: specs/025-enderecos-pontos/.
+
+
+## Itinerário diário — 11/11/2026
+
+Decisão de Taís em 11/11/2026: itinerário com três abas (Ida, Volta e Intermunicipal), prévia e escolha de veículo integradas, painéis por grupo e filtro. Planejamento deixa de ser página separada. Recomendação somente intermunicipal, menor disponível para max(ida, volta), com escolha manual permitida. Disponibilidade semanal por dia (sim/não), exceção por data prevalece. Coleta, intermunicipal e desembarque são etapas sequenciais sem horários. Mesmo veículo pode atender as três etapas, limitado a um grupo por etapa e uma universidade no intermunicipal. Motorista também não pode ter duas atribuições no mesmo trecho da mesma etapa. Consulta somente da data atual em America/Sao_Paulo: ao virar o dia, outra operação; registros técnicos preservados. Prazos 17h/22h e mensagens 05h/11h/13h/16h não mudam.
+
+Esta decisão substitui as faixas horárias B11 e a consulta da operação anterior B15. Implementação e validação em [024](../specs/024-itinerario-diario/plan.md). Disponibilidades antigas devem ser cadastradas novamente por dia; faixas antigas permanecem guardadas, sem conversão automática em disponibilidade integral.
+
+Complemento aprovado de R05/R08/R09/R10/R19/R20 em 05/11: uma pergunta de esclarecimento por cadeia; dúvida persistente vai à equipe. Resposta citada válida resolve somente a finalidade perguntada, preservando intenções explícitas do pedido. Prazo usa o novo recebimento durável, antes das 17h. Sem vínculo ou informação suficiente, não confirmar. Pontos fixos por nome inequívoco; pedido de mudança do padrão não é aplicado parcialmente. [B18.4](../specs/020-contexto-conversa/spec.md).
+
+## Decisão vigente — desembarque em pontos fixos (04/11/2026)
+
+Taís definiu pontos de desembarque fixos cadastrados pela empresa, como os pontos de embarque. A equipe cadastra nome, endereço descritivo e vínculo ao grupo de distribuição; o aluno utiliza um ponto cadastrado e ativo. Mudanças diárias continuam sujeitas aos prazos e não alteram automaticamente o padrão. Locais desconhecidos exigem tratamento pela equipe, sem criar endereço ou ponto automaticamente. Ordem de paradas permanece manual.
+
+Mapas, geocodificação e validação automática de área deixam de ser dependências desta entrega; eventual integração será reavaliada depois. Esta decisão substitui o fluxo anterior de endereço livre validado por fornecedor, sem transformar endereços antigos em pontos aprovados automaticamente. Preservar registros existentes e resolver vínculos explicitamente. **Decisão registrada; adaptação do backend e do painel ainda pendente.** Próxima implementação deve cobrir cadastro/seleção, padrões, jornada, recibos, planejamento e itinerário, com testes de inativação, prazos e referências.
+
+
+## Decisão vigente — entrega antecipada (04/11/2026)
+
+Taís retirou o cálculo automático de rotas e a sugestão automática de mudança de padrão pela quarta utilização desta entrega. Usar itinerário manual B16; preservar mudança explícita/consentida de padrão e os registros existentes. Entrega de sistema e texto prevista para a semana de 16/11; texto fica com Taís. Autorizado antecipar frontend e testar/ajustar incrementalmente com backend existente, sem esperar todas as etapas B18. Próxima execução em [painel antecipado](../specs/021-painel-operacional/tasks.md). Contexto/agendador e ensaio WhatsApp continuam pendentes e não devem ser declarados concluídos. Regras de prazo, autorização, capacidade, idempotência e geografia permanecem obrigatórias.
+
 Estado de implementação vigente: [consolidação de 04/11/2026](estado-atual.md). R01–R22/O01 permanecem critérios de aceite, não declaração de integração completa; contexto de conversa segue specs/020-contexto-conversa/.
 
 Atualização de despacho em 29/10/2026: despachante de recibos implementado, com reserva durável antes da chamada, bloqueio de duplicatas e revalidação do estado atual. Verificado com transporte simulado; migração1794500000000 aplicada em dev/test. Envio real permanece false. Resultado incerto ou tentativa interrompida não é reenviado automaticamente; sent significa aceite do provedor, não entrega. Ensaio completo com aluno fictício explícito continua pendente. Detalhes em specs/019-interpretacao-mensagens/automation.md.
@@ -86,7 +114,7 @@ Confirmado por Taís em 23/10/2026: intenção explícita sem local válido conf
 Confirmado B10: após recusa, não repetir sugestão na mesma sequência; outro local e quatro novas utilizações do alternativo permitem nova proposta. Uso confirmado sem local identificado suspende a sugestão até resolução e recálculo, preservando a confirmação na demanda.
 
 ## Precisão de R14/R18 — B11
-Decisões B11 confirmadas em 25/10/2026: disponibilidade por faixas de início/fim informadas pela empresa e associadas às etapas; ciclo intermunicipal inclui ida, permanência e retorno. Programação semanal por veículo, com exceção por data prevalecendo. Sem configuração, não presumir disponibilidade.
+Regra vigente de 11/11/2026: disponibilidade por dia da semana, com exceção por data prevalecendo; sem configuração, indisponível para alocação. Etapas sequenciais permitem reuso, sem horários. Substitui as faixas de início/fim B11.
 
 ## Precisão de R16/R17 — B12
 Confirmado em 25/10/2026: opções/rascunhos antes das 17h; confirmação definitiva somente após fechamento e resolução das pendências. Empresa pode escolher veículo maior disponível e suficiente; recomendação permanece a menor capacidade adequada. Mudanças posteriores exigem revisão, sem troca automática do veículo. [Decisão B12](decisoes.md#b12--alocação-e-planejamento).
@@ -98,7 +126,7 @@ Correção manual altera apenas trechos/campos selecionados; não infere volta a
 Novo local confirmado sem posição permanece na demanda e impede publicar itinerário completo até inserção manual pela equipe. Alteração de ordem padrão exige publicação explícita do itinerário do dia; última ordem publicada permanece com alerta e cancelamentos filtram paradas vazias imediatamente. Publicação não altera grupos, veículos ou confirmações. Automático continua prioritário, com contrato e viabilidade condicionada preparados, sem integração real. [Decisões B16](decisoes.md#b16--trajeto-e-contingência).
 
 ## Precisão de R19/R20/R22 — B15
-Consulta operacional inclui respostas, origens, contagens, pendências e comunicação. Motorista ativo e explicitamente vinculado lê somente seus trechos confirmados, com telefones necessários. Revisão não publica rascunhos nem reassocia passageiros; cancelados saem imediatamente. Janela: hoje e operação anterior enquanto algum trecho confirmado não atingiu o fim previsto. Sem histórico ou reabertura de comandos. [Spec B15](../specs/014-consultas-operacionais/spec.md).
+Consulta operacional inclui respostas, origens, contagens, pendências e comunicação. Motorista ativo e explicitamente vinculado lê somente seus trechos confirmados, com telefones necessários. Revisão não publica rascunhos nem reassocia passageiros; cancelados saem imediatamente. Janela: somente hoje, conforme decisão de 11/11/2026. Sem histórico ou reabertura de comandos. [Spec B15](../specs/014-consultas-operacionais/spec.md).
 
 ## Precisão de R04/R19 — B14
 Recuperação após indisponibilidade considera somente o contato mais recente ainda pertinente antes das 17h, sem acumular horários perdidos. Extra válido iniciado pelo aluno recebe próximos lembretes de pendências, sem consulta inicial não habitual. Reenvio exige falha conhecida e pertinência atual; não repete enviado nem resultado incerto. [Decisões B14](decisoes.md#b14--mensagens-e-agendamentos-simulados).

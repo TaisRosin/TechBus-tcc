@@ -25,7 +25,9 @@ describe('Fleet availability intervals', () => {
   it('rejects an incomplete week and allows explicit unconfigured or unavailable days', () => {
     expect(() => parseWeek([[]])).toThrow('INVALID_INPUT');
     expect(parseWeek(null)).toBeNull();
-    expect(parseWeek([[], [], [], [], [], [], []])).toHaveLength(7);
+    expect(
+      parseWeek([false, true, true, true, true, true, false]),
+    ).toHaveLength(7);
   });
   it('rejects reversed trips and a different vehicle injected into the return leg', () => {
     const leg = { driverId: randomUUID(), start: 1000, end: 1100 };

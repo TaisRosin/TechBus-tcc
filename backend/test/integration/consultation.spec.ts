@@ -302,13 +302,7 @@ describe('Operational consultations on isolated PostgreSQL', () => {
     vehicles.push(v.id);
     await fleet.setWeek(admin, v.id, {
       expectedVersion: 1,
-      week: Array.from({ length: 7 }, () =>
-        ['collection', 'intermunicipal', 'distribution'].map((stage) => ({
-          stage,
-          start: 0,
-          end: 2880,
-        })),
-      ),
+      week: Array(7).fill(true),
     });
     const operations = new OperationService(store, clock);
     const trips = [
@@ -487,8 +481,10 @@ describe('Operational consultations on isolated PostgreSQL', () => {
       1,
     );
     instant = '2026-11-22T00:29:59-03:00';
-    expect((await service.overview(admin, { date })).date).toBe(date);
-    expect(await service.trips(otherUser)).toHaveLength(2);
+    await expect(service.overview(admin, { date })).rejects.toMatchObject({
+      code: 'OPERATION_NOT_AVAILABLE',
+    });
+    expect(await service.trips(otherUser)).toEqual([]);
     instant = '2026-11-22T00:30:00-03:00';
     expect(await service.trips(otherUser)).toEqual([]);
     await expect(service.overview(admin, { date })).rejects.toMatchObject({

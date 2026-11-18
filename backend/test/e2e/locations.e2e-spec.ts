@@ -66,9 +66,10 @@ describe('Locations HTTP and unavailable real validation', () => {
         'DELETE FROM app.student_place_defaults WHERE student_id=ANY($1::uuid[])',
         [students],
       );
-      await source.query('DELETE FROM app.return_locations WHERE provider=$1', [
-        provider,
-      ]);
+      await source.query(
+        'DELETE FROM app.return_locations WHERE provider=$1 OR id=ANY($2::uuid[])',
+        [provider, ids],
+      );
       await source.query(
         'DELETE FROM app.boarding_points WHERE id=ANY($1::uuid[])',
         [ids],
@@ -95,6 +96,27 @@ describe('Locations HTTP and unavailable real validation', () => {
       await source.destroy();
     }
   });
+  it('protects Maps endpoints and reports missing configuration without credentials', async () => {
+    await request(normal.getHttpServer())
+      .post('/api/v1/maps/geocode')
+      .send({ address: 'Praça' })
+      .expect(401);
+    await request(normal.getHttpServer())
+      .post('/api/v1/maps/geocode')
+      .set('Authorization', `Bearer ${users[2]}`)
+      .send({ address: 'Praça' })
+      .expect(403);
+    const response = await request(normal.getHttpServer())
+      .post('/api/v1/maps/geocode')
+      .set('Authorization', `Bearer ${users[0]}`)
+      .send({ address: 'Praça' })
+      .expect(503);
+    expect(JSON.stringify(response.body)).toContain('MAPS_UNCONFIGURED');
+    await request(normal.getHttpServer())
+      .get('/api/v1/maps/groups/direct?mode=direct')
+      .set('Authorization', `Bearer ${users[0]}`)
+      .expect(200);
+  });
   it('rejects unauthenticated/driver access and cannot fake a real address validation', async () => {
     const server = normal.getHttpServer();
     await request(server).get('/api/v1/groups').expect(401);
@@ -107,8 +129,8 @@ describe('Locations HTTP and unavailable real validation', () => {
       .post('/api/v1/return-locations/resolve')
       .set('Authorization', `Bearer ${users[0]}`)
       .send({ address: 'Endereço sem integração real' })
-      .expect(503)
-      .expect({ code: 'ADDRESS_VALIDATION_UNAVAILABLE' });
+      .expect(422)
+      .expect({ code: 'FIXED_DROPOFF_REQUIRED' });
     await request(server)
       .post('/api/v1/return-locations/resolve')
       .set('Authorization', `Bearer ${users[0]}`)
@@ -141,7 +163,8 @@ describe('Locations HTTP and unavailable real validation', () => {
         address: 'Local sintético',
         groupId: pickup.id,
       }),
-      region = await create('regions', {
+      region = await create('dropoff-points', {
+        address: 'Rua sintética',
         name: 'Região HTTP',
         groupId: dropoff.id,
       });
@@ -192,7 +215,7 @@ describe('Locations HTTP and unavailable real validation', () => {
       .put(`${url}/dropoff`)
       .set('Authorization', auth)
       .send({
-        address: 'Casa sintética',
+        locationId: region.id,
         source: 'initial',
         evidence: 'Cadastro HTTP',
         expectedVersion: 0,

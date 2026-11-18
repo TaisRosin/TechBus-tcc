@@ -3,6 +3,7 @@ import { AccessError } from '../access/domain/access';
 import { parseProviderOrder, type ProviderOrder } from './provider-order';
 
 export interface WhatsAppEvent {
+  replyTo?: string;
   originalOrder?: ProviderOrder;
   kind: 'message' | 'status' | 'connection';
   externalId: string;
@@ -63,6 +64,21 @@ export function projectWebhook(
       phone(key.remoteJid) ??
       (key.remoteJid.endsWith('@lid') ? phone(key.remoteJidAlt) : null);
     const message = object(data.message);
+    const extended =
+      message.extendedTextMessage === undefined
+        ? undefined
+        : object(message.extendedTextMessage);
+    const contexts = [extended?.contextInfo, data.contextInfo]
+      .filter((v) => v !== undefined && v !== null)
+      .map(object);
+    const quotes = contexts
+      .map((v) => v.stanzaId)
+      .filter((v) => v !== undefined)
+      .map(id);
+    const replyTo =
+      quotes.length && quotes.every((v) => v === quotes[0])
+        ? quotes[0]
+        : undefined;
     let text: unknown = message.conversation;
     if (text === undefined && message.extendedTextMessage !== undefined)
       text = object(message.extendedTextMessage).text;
@@ -73,6 +89,7 @@ export function projectWebhook(
       throw new AccessError('INVALID_INPUT', 400);
     return {
       kind: 'message',
+      ...(replyTo ? { replyTo } : {}),
       ...(parseProviderOrder(data.techbusOriginalOrder)
         ? { originalOrder: parseProviderOrder(data.techbusOriginalOrder)! }
         : {}),

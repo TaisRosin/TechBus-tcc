@@ -1,6 +1,17 @@
 # TechBus — Sistema para gestão de transporte universitário
 
-**Estado vigente em 04/11/2026:** [situação consolidada e pendências](docs/estado-atual.md). Próximo incremento: [contexto de conversa — B18.4](specs/020-contexto-conversa/tasks.md), planejado, não implementado. Testes manuais de Taís adiados; B18.3/T019 permanece aberto. As atualizações de outubro abaixo são históricas onde divergirem desse registro.
+> **Consolidação para apresentação — 17/11/2026:** consulte o [guia completo](docs/guia-apresentacao-andamento.md) e o [inventário técnico](docs/inventario-tecnico-andamento.md). Backend e painel locais, contexto de conversa, agendador, pontos fixos, disponibilidade diária e prévia Google Maps estão implementados. Ensaio WhatsApp de 09/11 foi parcial; cadeia completa, hospedagem e avaliação acadêmica permanecem pendentes. Ordem de paradas continua manual; quarta utilização está fora da entrega. Trechos antigos abaixo que divergem desse estado são históricos; as evidências de cada incremento delimitam o que foi validado.
+
+11/11/2026 — Endereços dos pontos: cadastro próprio estruturado (logradouro/localização, número textual ou sem número, bairro, cidade, UF, Brasil, CEP e complemento) e referência da parada separada, exibida no itinerário/motorista. Bairro, CEP e complemento opcionais. Texto antigo preservado, detalhamento somente explícito; UUIDs, grupos, padrões e ordem manual mantidos. Validação estrutural não comprova endereço real. Maps/geocodificação/rotas continuam futuros. Implementação: specs/025-enderecos-pontos/.
+
+
+**11/11/2026:** correção do itinerário: três abas Ida/Volta/Intermunicipal com prévia e escolhas integradas; disponibilidade por dia e alocação por etapa, sem horários de viagem. Consulta somente no próprio dia. [Decisão e implementação](specs/024-itinerario-diario/plan.md).
+
+**06/11/2026:** [agendador operacional](specs/023-agendador-operacional/verification.md) implementado e validado:504 testes backend/82 suítes, tipos/lint/build aprovados. Consulta05h, lembretes11h/13h/16h e fechamento após17h, com recuperação segura e ativação explícita. [Ativação e limites](specs/023-agendador-operacional/quickstart.md). Ensaio real e hospedagem continuam pendentes; registros anteriores sobre agendador não implementado são históricos.
+
+Atualização vigente de 04/11: Taís cortou cálculo automático de rotas e sugestão da quarta utilização, autorizou antecipar frontend com testes incrementais e indicou entrega de ambos na semana de 16/11 (texto sob responsabilidade dela). Executar specs/021-painel-operacional/ antes de concluir B18.4. Itinerário manual e regras críticas preservados. Consulte [estado atual](docs/estado-atual.md).
+
+**Estado vigente em 05/11/2026:** [painel operacional](frontend/README.md) e [pontos fixos](specs/022-desembarque-fixo/verification.md) implementados. [Contexto B18.4](specs/020-contexto-conversa/verification.md) implementado e validado localmente: uma pergunta e depois equipe, resposta citada e pontos fixos sem mapas. Agendador, ensaio WhatsApp completo e hospedagem ainda pendentes. Testes manuais anteriores de Taís adiados; B18.3/T019 permanece aberto. Registros anteriores são históricos onde divergirem da [situação consolidada](docs/estado-atual.md).
 
 Documentação consolidada do TCC de Taís. TechBus organiza a demanda, a operação e o apoio à decisão de uma empresa de transporte universitário noturno, atendendo Unimater e Unidep. WhatsApp e IA são componentes de confirmação e comunicação; o produto inclui cadastros, calendários, contratos por vigência, painel, acessos e recomendação intermunicipal.
 
@@ -14,7 +25,7 @@ O aluno confirma e revisa trechos e locais até **17h**. “Vou” ou confirmaç
 
 Consulta às **05h** e três lembretes de pendências às **11h, 13h e 16h**, em America/Sao_Paulo. Consultas dependem de dia habitual do aluno, operação da universidade e contrato vigente. Administrador e operador podem corrigir listas depois de 17h; correções manuais não notificam automaticamente pelo WhatsApp.
 
-O cálculo automático de trajeto é muito desejado e de alta prioridade, condicionado ao prazo. Plano B aprovado se necessário: filtrar locais dos confirmados na ordem cadastrada pela empresa para cada grupo/sentido.
+Nesta entrega, o itinerário filtra locais dos confirmados na ordem cadastrada pela empresa para cada grupo/sentido. Cálculo automático de trajeto e sugestão automática da quarta utilização foram retirados do escopo em 04/11.
 
 ## Direção tecnológica e execução
 

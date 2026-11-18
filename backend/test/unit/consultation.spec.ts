@@ -12,10 +12,10 @@ describe('Operational consultation window', () => {
       { driverId: 'b', start: 1410, end: 1470 },
     ],
   };
-  it('keeps the previous operation until the exact last confirmed end, without history', () => {
+  it('ends access at the date boundary even when a legacy trip ends later', () => {
     expect(
       consultable('2026-10-26', [trip], new Date('2026-10-27T00:29:59-03:00')),
-    ).toBe(true);
+    ).toBe(false);
     expect(
       consultable('2026-10-26', [trip], new Date('2026-10-27T00:30:00-03:00')),
     ).toBe(false);

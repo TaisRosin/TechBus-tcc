@@ -1,3 +1,4 @@
+import { returnItem } from '../../registry/application/return-item';
 import { AccessError } from '../../access/domain/access';
 import {
   RegistryStore,
@@ -66,7 +67,7 @@ export class ItineraryService {
           group.direction === 'pickup'
             ? await tx.places.get('point', stop)
             : location
-              ? await tx.places.get('region', location.regionId)
+              ? await returnItem(tx.places, location)
               : null;
         if (!item?.active || item.groupId !== id)
           throw new AccessError('STOP_NOT_IN_GROUP', 409);
@@ -107,7 +108,12 @@ export class ItineraryService {
     );
     const stops = new Map<
       string,
-      { id: string; label: string; studentIds: string[] }
+      {
+        id: string;
+        label: string;
+        stopReference?: string;
+        studentIds: string[];
+      }
     >();
     for (const row of passengers) {
       const place = row[side === 'pickup' ? 'pickupPlace' : 'dropoffPlace'];
@@ -219,7 +225,12 @@ export class ItineraryService {
           : null;
       const stops = new Map<
         string,
-        { id: string; label: string; studentIds: string[] }
+        {
+          id: string;
+          label: string;
+          stopReference?: string;
+          studentIds: string[];
+        }
       >();
       for (const student of trip.students) {
         if (!student.place) continue;

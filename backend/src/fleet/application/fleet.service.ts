@@ -15,9 +15,8 @@ import { page, textField } from '../../registry/domain/locations';
 import type { Vehicle, Driver } from './ports';
 import {
   parseWeek,
-  parseWindows,
+  parseAvailable,
   parseProposal,
-  covers,
   type ProposedTrip,
 } from '../domain/fleet';
 import { calendarDate } from '../../registry/domain/calendar';
@@ -52,12 +51,11 @@ export class FleetService {
       else if (!v.active) add('VEHICLE_INACTIVE');
       else {
         const exception = (await tx.fleet.exceptions(v.id, date, date))[0];
-        const windows =
-          exception?.windows ??
+        const available =
+          exception?.available ??
           v.week?.[new Date(`${date}T12:00:00Z`).getUTCDay()];
-        if (!windows) add('AVAILABILITY_NOT_CONFIGURED');
-        else if (!covers(windows, t.stage, t.start, t.end))
-          add('VEHICLE_UNAVAILABLE');
+        if (available === undefined) add('AVAILABILITY_NOT_CONFIGURED');
+        else if (!available) add('VEHICLE_UNAVAILABLE');
       }
       for (const id of new Set(t.legs.map((l) => l.driverId))) {
         const d = drivers.get(id);
@@ -74,23 +72,19 @@ export class FleetService {
       }
       const earlier = trips.slice(0, index);
       if (
+        earlier.some((p) => p.vehicleId === t.vehicleId && p.stage === t.stage)
+      )
+        add('VEHICLE_STAGE_CONFLICT');
+      if (
         earlier.some(
           (p) =>
-            p.vehicleId === t.vehicleId && p.start < t.end && t.start < p.end,
-        )
-      )
-        add('VEHICLE_OVERLAP');
-      if (
-        earlier.some((p) =>
-          p.legs.some((a) =>
-            t.legs.some(
-              (b) =>
-                a.driverId === b.driverId && a.start < b.end && b.start < a.end,
+            p.stage === t.stage &&
+            p.legs.some(
+              (a, legIndex) => a.driverId === t.legs[legIndex]?.driverId,
             ),
-          ),
         )
       )
-        add('DRIVER_OVERLAP');
+        add('DRIVER_STAGE_CONFLICT');
     }
     return { eligible: issues.length === 0, issues };
   }
@@ -124,17 +118,17 @@ export class FleetService {
   async setException(actor: string, id: string, date: string, input: unknown) {
     uuid(id);
     calendarDate(date);
-    const v = exact(input, ['windows', 'expectedVersion']),
-      windows = v.windows === null ? null : parseWindows(v.windows),
+    const v = exact(input, ['available', 'expectedVersion']),
+      available = parseAvailable(v.available),
       version = revision(v.expectedVersion);
     return this.run(actor, async (tx) => {
       const old = await this.required(tx, id);
       if (old.version !== version)
         throw new AccessError('VERSION_CONFLICT', 409);
-      await tx.fleet.saveException(id, date, windows);
+      await tx.fleet.saveException(id, date, available);
       old.version++;
       await tx.fleet.saveVehicle(old, false);
-      return { vehicleId: id, date, windows, version: old.version };
+      return { vehicleId: id, date, available, version: old.version };
     });
   }
   async exceptions(actor: string, id: string, input: unknown) {

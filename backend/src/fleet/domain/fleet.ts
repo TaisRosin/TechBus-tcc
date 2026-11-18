@@ -43,10 +43,19 @@ export function parseWindows(input: unknown): Window[] {
         return invalid();
   return windows;
 }
-export function parseWeek(input: unknown): Window[][] | null {
+export function parseWeek(input: unknown): boolean[] | null {
   if (input === null) return null;
-  if (!Array.isArray(input) || input.length !== 7) return invalid();
-  return input.map(parseWindows);
+  if (
+    !Array.isArray(input) ||
+    input.length !== 7 ||
+    input.some((day) => typeof day !== 'boolean')
+  )
+    return invalid();
+  return input as boolean[];
+}
+export function parseAvailable(input: unknown): boolean | null {
+  if (input !== null && typeof input !== 'boolean') return invalid();
+  return input;
 }
 export function covers(
   windows: Window[],
@@ -66,16 +75,16 @@ export function covers(
 }
 export interface DrivingLeg {
   driverId: string;
-  start: number;
-  end: number;
+  start?: number;
+  end?: number;
 }
 export interface ProposedTrip {
   vehicleId: string;
   stage: Stage;
   groupId?: string;
   universityId?: string;
-  start: number;
-  end: number;
+  start?: number;
+  end?: number;
   legs: DrivingLeg[];
 }
 const id = (value: unknown) => {
@@ -83,8 +92,12 @@ const id = (value: unknown) => {
   return uuid(value);
 };
 const driving = (input: unknown): DrivingLeg => {
-  const v = exact(input, ['driverId', 'start', 'end']);
-  return { driverId: id(v.driverId), ...interval(v.start, v.end) };
+  const timed = !!input && typeof input === 'object' && 'start' in input;
+  const v = exact(input, timed ? ['driverId', 'start', 'end'] : ['driverId']);
+  return {
+    driverId: id(v.driverId),
+    ...(timed ? interval(v.start, v.end) : {}),
+  };
 };
 export function parseProposal(input: unknown): {
   date: string;
@@ -109,7 +122,12 @@ export function parseProposal(input: unknown): {
         return invalid();
       const outbound = driving(t.outbound),
         back = driving(t.return);
-      if (back.start < outbound.end) return invalid();
+      if (
+        back.start !== undefined &&
+        outbound.end !== undefined &&
+        back.start < outbound.end
+      )
+        return invalid();
       return {
         vehicleId: id(t.vehicleId),
         universityId: t.universityId as string,
@@ -120,23 +138,24 @@ export function parseProposal(input: unknown): {
       };
     }
     if (input.kind === 'local') {
+      const timed = 'start' in input;
       const t = exact(input, [
         'kind',
         'vehicleId',
         'groupId',
         'stage',
         'driverId',
-        'start',
-        'end',
+        ...(timed ? ['start', 'end'] : []),
       ]);
       if (t.stage !== 'collection' && t.stage !== 'distribution')
         return invalid();
-      const leg = { driverId: id(t.driverId), ...interval(t.start, t.end) };
+      const span = timed ? interval(t.start, t.end) : {};
+      const leg = { driverId: id(t.driverId), ...span };
       return {
         vehicleId: id(t.vehicleId),
         groupId: id(t.groupId),
         stage: t.stage,
-        ...interval(t.start, t.end),
+        ...span,
         legs: [leg],
       };
     }
